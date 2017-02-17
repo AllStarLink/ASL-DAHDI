@@ -1,0 +1,133 @@
+.TH "ASTRIBANK_HEXLOAD" "8" "30 May 2011" "" ""
+
+.SH NAME
+astribank_hexload \- Xorcom Astribank (xpp) firmware loader
+.SH SYNOPSIS
+.B astribank_hexload \-D \fIdevice-path\fR \-F [\fIoptions\fR] \fIhexfile\fR
+
+.B astribank_hexload \-D \fIdevice-path\fR \-p [\fIoptions\fR] \fIhexfile1 .. hexfile4\fR
+
+.B astribank_hexload \-D \fIdevice-path\fR \-O [-A] [-S \fIspan-specs\fR] [\fIoptions\fR] \fIimagefile\fR
+
+.B astribank_hexload \-D \fIdevice-path\fR \-o [\fIoptions\fR]
+
+.B astribank_hexload \-D \fIdevice-path\fR \-E [\fIoptions\fR] \fIhexfile\fR
+
+.B astribank_hexload \-h
+
+.SH DESCRIPTION
+.B astribank_hexload
+is a second-stage firmware loader for Xorcom Astribanks.
+
+Note that some very old models use fpga_load(8) instead.
+This legacy tool hasn't been used for several releases.
+It can be found in version 2.6 and below of dahdi-tools.
+
+The astribank_hexload(8) program is used to load a file in the
+Intel HEX format into a Xorcom Astribank.
+It can be used to load either an FPGA firmware or a PIC
+firmware. It is normally run by the script xpp_fxloader.
+
+.SH OPTIONS
+.B \-D
+.I device-path
+.RS
+Required. The device to read from/write to. This is
+\fIbus_num\fR/\fIdevice_num\fR, where \fIbus_num\fR and \fIdevice_num\fR
+are the first two numbers in the output of lsusb(8) or dahdi_hardware(8).
+On older versions of this tool you needed a complete path to the device,
+which would be /dev/bus/usb/\fIbus_num\fR/\fIdevice_num\fR, or
+/proc/bus/usb/\fIbus_num\fR/\fIdevice_num\fR.
+.RE
+
+One of the following is required:
+
+.B \-F
+.RS
+The firmware to load is a FPGA firmware.
+.RE
+
+.B \-p
+.RS
+The firmwares to load is are PIC firmwares. All (typically 4) should be
+on the command-line.
+.RE
+
+.B \-O
+.RS
+The firmware to load is an Octasic echo canceller firmware image file.
+.RE
+
+.B \-o
+.RS
+Don't load firmware. Just print the version number of the currently-loaded
+Octasic echo canceller firmware.
+.RE
+
+.B \-E
+.RS
+The firmware to load is a special EEPROM burning one.
+.RE
+
+
+Other options:
+
+.B \-v
+.RS
+Increase verbosity. May be used multiple times.
+.RE
+
+.B \-d \fImask\fR
+.RS
+Set debug mask to \fImask\fR. Default is 0, 0xFF is "everything".
+.RE
+
+.B \-h
+.RS
+Displays usage message.
+.RE
+
+.B \-A
+.RS
+When loading a Octasic echo canceller firmware, set the channels of the
+first Astribank module to use aLaw (G.711a). This is what you'd normally
+use for BRI and E1. If not set, the default mu-Law (G.711u), which is
+what you'd normally use for FXS, FXO and T1.
+.RE
+
+.B \-S \fIspan-specs\fR
+.RS
+This option should only be used when loading Octasic echo canceller firmware
+and only if the first Astribank module is PRI.
+
+Its goal is to allow specifying different \fIline-mode\fR (E1/T1/J1) in different
+ports of the PRI module. \fBastribank_hexload\fR use the \fIspan-specs\fR argument
+to select aLaw/uLaw for each of the PRI ports in the module.
+
+The \fIspan-specs\fR is a list of items separated by whitespace or commas.
+Each item is composed of a port selector, colon and a \fIline-mode\fR specifier.
+This syntax follows the syntax of specifiers in \fB/etc/dahdi/span-types.conf\fR.
+
+Examples:
+.RS
+3:E1 \- The 3'rd port is E1.
+
+*:T1 \- Any unspecified port is T1 (wildcard match).
+
+1:T1,2:T1,*:E1 \- First and second ports are T1, the rest are E1.
+.RE
+
+If the \fB\-S\fR is not given, the PRI default is determined by the existance of the \fB\-A-fR option.
+.RE
+
+.SH SEE ALSO
+fxload(8), lsusb(8), astribank_tool(8)
+
+.SH AUTHOR
+This manual page was written by Tzafrir Cohen <tzafrir.cohen@xorcom.com> .
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU General Public License, Version 2 any
+later version published by the Free Software Foundation.
+
+On Debian systems, the complete text of the GNU General Public
+License can be found in /usr/share/common\-licenses/GPL.

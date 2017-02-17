@@ -1,0 +1,248 @@
+#! /usr/bin/perl -w
+#
+# Written by Oron Peled <oron@actcom.co.il>
+# Copyright (C) 2007, Xorcom
+# This program is free software; you can redistribute and/or
+# modify it under the same terms as Perl itself.
+#
+# $Id$
+#
+use strict;
+use File::Basename;
+BEGIN { my $dir = dirname($0); unshift(@INC, "$dir", "$dir/perl_modules"); }
+
+use Dahdi;
+use Dahdi::Span;
+use Dahdi::Xpp;
+use Dahdi::Xpp::Xbus;
+use Dahdi::Xpp::Xpd;
+use Getopt::Std;
+
+sub usage {
+	die "Usage: $0 [-v] [-R] [-s sort_order] [on|off|1|0]\n";
+}
+
+sub check_param {
+	my $param = shift || die;
+	open(F, $param) || return '';
+	my $val = <F>;
+	close F;
+	chomp $val;
+	return $val;
+}
+
+my %opts;
+getopts('vRs:', \%opts) || usage;
+
+my $dahdi_autoreg = check_param('/sys/module/xpp/parameters/dahdi_autoreg') eq 'Y';
+my $auto_assign_spans = check_param('/sys/module/dahdi/parameters/auto_assign_spans') ne '0';
+my $assigned_spans_config = $ENV{'ASSIGNED_SPANS_CONF_FILE'} || '/etc/dahdi/assigned-spans.conf';
+my $span_types_config = $ENV{'SPAN_TYPES_CONF_FILE'} || '/etc/dahdi/span-types.conf';
+my $have_assigned_spans_config = -f $assigned_spans_config || 0;
+my $have_span_types_config = -f $span_types_config || 0;
+
+# Spans will be auto-assigned by default if either:
+# - Driver $auto_assign_spans them or
+# - Udev script see that we $have_span_types_config and it "add" them
+my $default_auto_assign = $auto_assign_spans || $have_assigned_spans_config;
+
+my $sorter;
+my $sort_order = $opts{'s'};
+if(defined $sort_order) {
+	my $sorter = Dahdi::Xpp::sorters($sort_order);
+
+	if(!defined $sorter) {
+		my @sorter_names = Dahdi::Xpp::sorters;
+		print STDERR "Unknown sort order $sort_order. Select from:\n\t";
+		print STDERR join("\n\t", @sorter_names);
+		print STDERR "\n";
+		exit 1;
+	}
+}
+
+@ARGV == 0 or @ARGV == 1 or usage;
+my $on = shift;
+my $verbose = $opts{'v'};
+my $should_output = 1;
+
+#print "dahdi_autoreg=$dahdi_autoreg auto_assign_spans=$auto_assign_spans have_assigned_spans_config='$have_assigned_spans_config' have_span_types_config='$have_span_types_config'\n";
+
+if(defined($on)) {	# Translate to booleans
+	$on = uc($on);
+	$on =~ /^(ON|OFF|1|0)$/ or usage;
+	$on = ($on eq 'ON') ? 1 : 0;
+	$should_output = 0 unless $verbose;
+}
+
+sub state2str($) {
+	return (shift)?"on":"off";
+}
+
+sub myprintf {
+	printf @_ if $should_output;
+}
+
+foreach my $xbus (Dahdi::Xpp::xbuses($sorter)) {
+	my $prev = $xbus->dahdi_registration($on);
+	if(!defined($prev)) {			# Failure
+		printf STDERR "%s: Failed %s\n", $xbus->name, $!;
+		next;
+	}
+	my $reg_str;
+	if (defined $on) {
+		$reg_str = ($on) ? "registering" : "unregistering";
+	} else {
+		$reg_str = ($prev) ? "registered" : "unregistered";
+	}
+	myprintf "%-10s\t%3s-%s\t%s (%s)\n",
+		$xbus->name, $xbus->xpporder, $xbus->label, $xbus->connector,
+		$reg_str;
+	next unless $xbus->status eq 'CONNECTED';
+	# Only assign if no default assignment, or forced by '-R' option
+	if (defined($on) && $on) {
+		if ($opts{'R'} || ! $default_auto_assign) {
+			# Emulate /etc/dahdi/assigned-spans.conf:
+			#   - We iterate over $xbus according to /etc/dahdi/xpp_order
+			#   - We "auto" assign all spans of current $xbus
+			my $devpath = sprintf "/sys/bus/dahdi_devices/devices/astribanks:xbus-%02d", $xbus->num;
+			my @cmd = ('dahdi_span_assignments', 'auto', $devpath);
+			system @cmd;
+			warn "Failed '@cmd' (status=$?)\n" if $?;
+		}
+		# wait for UDEV to do its stuff
+		system "dahdi_waitfor_span_assignments assigned";
+	}
+	foreach my $xpd (Dahdi::Xpp::Xpd::telephony_devs($xbus->xpds())) {
+		my $spanno = $xpd->xpd_getattr('span');
+		myprintf "\t%-10s: ", $xpd->fqn;
+		my $spanstr = ($spanno) ? ("Span " . $spanno) : "unassigned";
+		myprintf "%s\n", $spanstr ;
+	}
+}
+myprintf "# Sorted: $sort_order\n" if defined $sort_order;
+
+__END__
+
+=head1 NAME
+
+dahdi_registration - Handle registration of Xorcom XPD modules in dahdi.
+
+=head1 SYNOPSIS
+
+dahdi_registration [-v] [-s sortorder] [-R] [on|off]
+
+=head1 DESCRIPTION
+
+Without parameters, show all connected XPDs sorted by physical connector order.
+Each one is show to be unregistered (off), or registered to a specific dahdi
+span (the span number is shown).
+
+All registerations/deregisterations are sorted by physical connector string.
+
+Span registration should generally always succeed. Span unregistration may 
+fail if channels from the span are in use by e.g. asterisk. In such a case
+you'll also see those channels as '(In use)' in the output of lsdahdi(8).
+
+dahdi_registration is intended to be used when the kernel module parameter
+B<xpp.dahdi_autoreg> is false (and implicitly: when the module parameter
+B<dahdi.auto_assign_span> is true). See also the NOTES section regarding
+C<dahdi_span_assignments>.
+
+If dahdi_autoreg is true, the program will normally do nothing.
+
+=head2 Parameters
+
+off -- deregisters all XPD's from dahdi.
+
+on -- registers all XPD's to dahdi.
+
+=head2 Options
+
+=over
+
+=item -v
+
+verbose output.
+
+=item -R
+
+Force operations (on/off) even if the module parameter B<dahdi_autoreg>
+for xpp is enabled (which makes this program unneeded).
+
+=item -s I<sort_order>
+
+The sort order to use. 
+
+=back
+
+If the option is not used, the sort order is taken from the environment 
+variable XBUS_SORT and failing that: the hard-coded default of 
+SORT_XPPORDER.
+
+The available sorting orders are documented in Dahdi::Xpp manual.
+
+
+
+=head2 Sample Output
+
+An example of the output of dahdi_registration for some registered
+Astribanks:
+
+  $ dahdi_registration -s type
+  XBUS-01         usb:0000153     usb-0000:00:10.4-2
+	  XBUS-01/XPD-00: on Span 1
+	  XBUS-01/XPD-01: on Span 2
+  XBUS-00         usb:0000157     usb-0000:00:10.4-4
+	  XBUS-00/XPD-00: on Span 3
+	  XBUS-00/XPD-01: on Span 4
+	  XBUS-00/XPD-02: on Span 5
+	  XBUS-00/XPD-03: on Span 6
+	  XBUS-00/XPD-04: on Span 7
+	  XBUS-00/XPD-05: on Span 8
+	  XBUS-00/XPD-06: on Span 9
+	  XBUS-00/XPD-07: on Span 10
+  XBUS-02                 usb-0000:00:10.4-1
+	  XBUS-02/XPD-00: on Span 11
+	  XBUS-02/XPD-10: on Span 12
+  # Sorted: type
+
+=head1 FILES
+
+=over
+
+=item /proc/xpp/XBUS-nn/XPD-mm/dahdi_registration
+
+Reading from this file shows if if the if the specific XPD is
+registered. Writing to it 0 or 1 registers / unregisters the device.
+
+This should allow you to register / unregister a specific XPD rather
+than all of them. 
+
+=back
+
+=head1 NOTES
+
+dahdi_registration is intended to be used when the kernel module
+parameter B<xpp.dahdi_autoreg> is false (and implicitly: when the module
+parameter B<dahdi.auto_assign_span> is true), that is, Astribank devices
+as detected by XPP (xbus / xpd) do not register automatically with the
+DAHDI core. This tool is used to register tem in an explicit order. It
+works well, but only if you can arange for all of the Astribanks of the
+system to be available (and not already registered) at a specific point
+in time.
+
+Newer versions of DAHDI added support for registering a span to a
+specific span/channelss numbers specification. This allows registering
+them out of order. To use this capability, the module parameter
+B<dahdi.auto_assign_span> should be unset (set to 0) and thus spans of
+detected DAHDI devices could be registered using C<dahdi_span_assignments>
+(which may also be run automatically from a udev hook).
+
+In this case there is no point in delaying XPP device registration with
+dahdi and the parameter B<xpp.dahdi_autoreg> should be set.
+dahdi_registration will simply become a no-op.
+
+=head1 SEE ALSO
+
+B<dahdi_cfg>(8), B<dahdi_span_assignments>(8).
+

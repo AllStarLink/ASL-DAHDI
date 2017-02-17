@@ -1,0 +1,23 @@
+# blacklist all the drivers by default in order to ensure that
+# /etc/init.d/dahdi installs them in the correct order so that the spans are
+# ordered consistently.
+
+blacklist wct4xxp
+blacklist wcte12xp
+blacklist wcte13xp
+blacklist wct1xxp
+blacklist wcte11xp
+blacklist wctdm24xxp
+blacklist wcfxo
+blacklist wctdm
+blacklist wctc4xxp
+blacklist wcb4xxp
+blacklist wcaxx
+blacklist wcte43x
+
+# Some mISDN drivers may try to attach to cards supported by DAHDI. If you
+# have a card which is *not* supported by DAHDI but supported by one of the
+# below drivers you should feel free to remove it from the blacklist below.
+blacklist hfcmulti
+blacklist netjet
+blacklist hfcpci

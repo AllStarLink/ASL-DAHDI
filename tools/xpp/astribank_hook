@@ -1,0 +1,234 @@
+#! /bin/sh
+
+me=`basename $0`
+dir=`dirname $0`
+LOGGER="logger -i -t '$me'"
+
+# Always redirect stderr somewhere, otherwise the shell script will die
+# when it tries to do I/O related stuff on closed file descriptor.
+# Our default is to throw it down the bit-bucket.
+#exec 2> /dev/console
+## If you wish to trace this script:
+#exec 2> "/tmp/${me}_$XBUS_NAME" 1>&2
+
+# Our directory in the beginning, so we can use local lab setup
+PATH="$dir:/usr/sbin:/sbin:/usr/bin:/bin"
+
+set -e
+
+LOCK="/var/lock/twinstar_startup"
+
+[ -r /etc/dahdi/init.conf ] && . /etc/dahdi/init.conf
+
+# For lab testing
+liveconf="$dir/liveconf/dahdi"
+
+if [ -d "$liveconf" ]; then
+	dahdi_conf="$liveconf"
+else
+	dahdi_conf="/etc/dahdi"
+fi
+
+if [ "$XPP_HOTPLUG_DAHDI" != yes ]; then
+	exit 0
+fi
+
+export XPPORDER_CONF="$dahdi_conf/xpp_order"
+export DAHDI_CFG_CMD="dahdi_cfg -c $dahdi_conf/system.conf"
+export CALLED_FROM_ATRIBANK_HOOK=yes
+
+can_full_async() {
+	# Can we work aynchronously:
+	#    - Need modern Asterisk that accept hotplug DAHDI devices.
+	#    - Need DAHDI with "auto_assign_spans" == 0
+	if [ "$ASTERISK_SUPPORTS_DAHDI_HOTPLUG" = yes ]; then
+		aas_param='/sys/module/dahdi/parameters/auto_assign_spans'
+		aas=`cat "$aas_param" 2>/dev/null`
+		if [ "$aas" = 0 ]; then
+			return 0
+		else
+			$LOGGER "No async operation ($aas_param != 0)"
+		fi
+	else
+		$LOGGER "No async operation (ASTERISK_SUPPORTS_DAHDI_HOTPLUG!=yes)"
+	fi
+	return 1
+}
+
+check_xpporder_conf() {
+	if [ ! -r "$XPPORDER_CONF" ]; then
+		(
+			echo "Skip($ACTION): No '$XPPORDER_CONF'"
+			echo "Removing uneeded startup semaphore"
+			astribank_is_starting -v -r 2>&1
+		) 2>&1 | $LOGGER
+		exit 0
+	fi
+}
+
+clean_lines() {
+	sed -e 's/#.*//' -e 'y/\t/ /' -e 's/^ *//' -e 's/ *$//' -e '$s/$/\n/' "$XPPORDER_CONF"
+}
+
+matched_devices() {
+	ready=`grep -H READY /sys/bus/astribanks/devices/*/xbus_state | sed 's,/xbus_state.*,,'`
+	for dev in $ready
+	do
+		label=`cat "$dev/label"`
+		connector=`cat "$dev/connector"`
+		xbus=`echo "$dev" | sed 's,.*/,,'`
+		lineno=`clean_lines | egrep -n "^${label}$|^@${connector}$" | cut -d: -f1`
+		if [ "$lineno" != "" ]; then
+			#echo "$xbus: $XPPORDER_CONF:$lineno -- Match ${label} @${connector}" | $LOGGER
+			printf "${xbus}\t${label}\n"
+		else
+			echo "${xbus}: ${label} @${connector} not found in $XPPORDER_CONF: Ignore($ACTION)" | $LOGGER
+		fi
+	done
+}
+
+# Wait until udev finished processing our requests
+# so we know the device files were actually created
+# before trying dahdi_cfg et-al.
+wait_for_udev() {
+	UDEV_SETTLE_MAX_TIME=10
+
+	echo "Waiting for udev to settle down..."
+	if [ -x /sbin/udevsettle ]; then
+		# Old system, stand-alone udevsettle command
+		/sbin/udevsettle --timeout="$UDEV_SETTLE_MAX_TIME"
+	elif [ -x /sbin/udevadm ]; then
+		# Assume modern system, udevadm has settle parameter
+		if ! /sbin/udevadm settle --timeout="$UDEV_SETTLE_MAX_TIME"
+		then
+			echo "udevadm failed ($?)."
+			echo "Fallback to sleep $UDEV_SETTLE_MAX_TIME seconds."
+			sleep "$UDEV_SETTLE_MAX_TIME"
+		fi
+	else
+		echo "No udevsettle/udevadm."
+		echo "Fallback to sleep $UDEV_SETTLE_MAX_TIME seconds."
+		sleep "$UDEV_SETTLE_MAX_TIME"
+	fi
+	sleep 1	# Wait a bit more (races)
+}
+
+start_dahdi() {
+	wait_for_udev
+	script=/etc/init.d/dahdi
+	echo "Starting $script."
+	"$script" start | logger -i -t "$script"
+	status=$?
+	echo "Status($script): $status"
+	if [ -x "$dir/twinstar_hook" ]; then
+		"$dir/twinstar_hook"
+	fi
+	# Finished astribanks
+	echo "Removing semaphore"
+	astribank_is_starting -v -r
+	rm -f "$LOCK"
+}
+
+old_synchronous_start() {
+	NUM_GOOD=`matched_devices | wc -l`
+	NUM_WANTED=`clean_lines | sed '/^$/d' | wc -l`
+	echo "$ACTION($XBUS_NAME): $NUM_GOOD/$NUM_WANTED from $XPPORDER_CONF" | $LOGGER
+	if [ "$NUM_GOOD" -eq "$NUM_WANTED" ]; then
+		(
+			# Delay the initialization of the Astribank until the filesystem
+			# is mounted read-write:
+			test_file="/var/lock/astribank_test_file"
+			for i in `seq 1 20`; do
+				if touch $test_file 2> /dev/null; then
+					rm -f $test_file
+					break
+				else
+					echo "$0: [$i] - Failed writing '$test_file'...waiting" | $LOGGER
+					sleep 1;
+				fi
+		        done
+
+			if ln -s "$XBUS_NAME" "$LOCK"; then
+				echo "START-DAHDI: Total $NUM_GOOD online." | $LOGGER
+				# Fork services
+				start_dahdi < /dev/null 2>&1 | $LOGGER
+			else
+				echo "$0: Was started: $(ls -l $LOCK)" | $LOGGER
+			fi
+		) < /dev/null 2>&1 | $LOGGER &
+	fi
+}
+
+old_synchronous_stop() {
+	NUM_GOOD=`matched_devices | wc -l`
+	NUM_WANTED=`clean_lines | sed '/^$/d' | wc -l`
+	echo "$ACTION($XBUS_NAME): $NUM_GOOD/$NUM_WANTED from $XPPORDER_CONF" | $LOGGER
+	if [ "$NUM_GOOD" -eq 0 ]; then
+		echo "All Astribanks offline" | $LOGGER
+		if [ -x "$dir/twinstar_hook" ]; then
+			"$dir/twinstar_hook" || :
+		fi
+		rm -f "$LOCK"
+	fi
+}
+
+ab_list() {
+	find /sys/devices -name idVendor 2>/dev/null | \
+		xargs grep -H  'e4e4' 2>/dev/null | \
+		sed -e 's/idVendor.*/idProduct/' | xargs grep -H '11[3456]' | \
+		sed 's,/[^/]*$,,' || :
+}
+
+tws_watchdog_enable() {
+	devdir="/sys$DEVPATH"
+	label=`cat "$devdir/label"`
+	connector=`cat "$devdir/connector"`
+	xbus=`echo "$devdir" | sed 's,.*/,,'`
+	prefix="${xbus}: [${label}] @${connector}"
+	TWS_NOAUTOJUMPFILE="$TWS_DIR/twinstar_no_autojump"
+	if [ -e "$TWS_NOAUTOJUMPFILE" ]; then
+		$LOGGER "$prefix: ignore wd (found $TWS_NOAUTOJUMPFILE)"
+	else
+		# Re-arm Astribank watchdog
+		transportdir="$devdir/transport"
+		busnum=`cat "$transportdir/busnum" 2>/dev/null || :`
+		devnum=`cat "$transportdir/devnum" 2>/dev/null || :`
+		devaddr=`printf "%03d/%03d" "$busnum" "$devnum"`
+		$LOGGER "$prefix: enabling twinstar watchdog"
+		astribank_tool -D "$devaddr" -w 1 2>&1 | $LOGGER
+	fi
+}
+
+#echo "$0: $ACTION($XBUS_NAME)" | $LOGGER
+case "$ACTION" in
+add)
+	;;
+remove)
+	ab=`ab_list | wc -l`
+	if [ "$ab" -eq 0 ]; then
+		$LOGGER "$prefix: No more Astribanks -- remove astribank_is_starting semaphore"
+		astribank_is_starting -v -r 2>&1 | $LOGGER
+	fi
+	;;
+online)
+	if can_full_async; then
+		tws_watchdog_enable
+	else
+		old_synchronous_start
+	fi
+	;;
+offline)
+	if can_full_async; then
+		:	# Nothing to do
+	else
+		old_synchronous_stop
+	fi
+	;;
+*)
+	echo "$0: Unknown ACTION='$ACTION'" | $LOGGER
+	echo "$0: ARGS='$*'" | $LOGGER
+	echo "$0: ENV:" | $LOGGER
+	env | $LOGGER
+	exit 1
+esac
+

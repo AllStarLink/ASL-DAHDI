@@ -1,0 +1,366 @@
+#! /bin/sh
+#
+# /usr/sbin/dahdi_span_types
+#
+# This script can be used both from udev and
+# from the command line to manage PRI spans
+# type (E1/T1/J1).
+#
+# Span types can be set only *BEFORE* span are assigned.
+#
+# It uses a configuration file: $DAHDICONFDIR/span-types.conf
+# (default DAHDICONFDIR=/etc/dahdi)
+# (the format is documented inside that file)
+#
+# The first argument is an action:
+#   "set"        - actually write the setting to the driver
+#   "list"       - human-readable list of E1/T1/J1 types
+#   "dumpconfig" - dump current assignments in a /etc/dahdi/span-types.conf
+#                  compatible format
+#
+# Without further arguments, it operates on all existing spans
+# With one or more sysfs dahdi_devices it is limited to those.
+#
+# We may use alternative "keys" for device matching:
+# * Available keys:
+#   - "hwid"       - Hardware id attribute from sysfs
+#   - "@location"  - Location attribute from sysfs (embeded inside '<>')
+#   - "/devpath"   - The sysfs absolute devpath
+#
+# * Wildcard are allowed in the configuration file:
+#   - In the device specifiers (keys)
+#   - In the span numbers
+#   - Example for "match-all":    *   *:T1
+#
+# * During "set":
+#   - If there are multiple matches, for a span, all are applied
+#   - They are always applied in their order in the configuration file
+#   - This means the last match wins
+#   - Example:
+#         *                   *:T1        # All span on all devices are T1
+#         usb:X1234567        [34]:E1	   # Except spans 3,4 on specific device
+#
+# * During "dumpconfig", for each device we take the first available key:
+#   - The preference is: "hwid" or else "@location" or else "/devpath"
+#   - This can be overriden via the SPAN_ASSIGNMENTS_KEY environment variable
+#     or the '{-k|--key} key' command line option.
+#
+# Command line options:
+#  - The '-h|--help' show a usage message.
+#  - The '-v|--verbose' show debugging messages (on stderr)
+#  - The '-n|--dry-run' During "set", only show what would be done
+#  - The '-k <key>|--key <key>' overrides the SPAN_ASSIGNMENTS_KEY environment
+#    variable.
+#
+# Examples:
+#    dahdi_span_types list
+#    dahdi_span_types set	     # all devices
+#    dahdi_span_types set /sys/bus/dahdi_devices/devices/astribanks:xbus-00
+#    dahdi_span_types -k location dumpconfig
+#
+
+
+devbase='/sys/bus/dahdi_devices/devices'
+DAHDICONFDIR="${DAHDICONFDIR:-/etc/dahdi}"
+DAHDISPANTYPESCONF="${DAHDISPANTYPESCONF:-"${DAHDICONFDIR}/span-types.conf"}"
+SPAN_ASSIGNMENTS_KEY=${SPAN_ASSIGNMENTS_KEY:-hwid}
+
+usage() {
+	echo >&2 "Usage: $0 [options] action [devpath ...]"
+	echo >&2 "       action:"
+	echo >&2 "         set        - set spans to E1/T1 according to /etc/dahdi/span-types.conf"
+	echo >&2 "         list       - human-readable list of all spans"
+	echo >&2 "         dumpconfig - dump current state in /etc/dahdi/span-types.conf format"
+	echo >&2 ""
+	echo >&2 "       options:"
+	echo >&2 "         -h|--help      - Show this help"
+	echo >&2 "         -v|--verbose'  - Show debugging messages (on stderr)"
+	echo >&2 "         -n|--dry-run'  - During 'set', only show what would be done"
+	echo >&2 "         -k|--key <k>   - Override prefered key during dumpconfig action"
+	echo >&2 "         --line-mode <m> - Set default line mode to <m> (E1/T1/J1)"
+	exit 1
+}
+
+# Parse command line options
+TEMP=`getopt -o hnvk: --long help,dry-run,verbose,key:,line-mode: -n "$0" -- "$@"`
+if [ $? != 0 ]; then
+	echo >&2 "Bad options"
+	usage
+fi
+
+# Note the quotes around `$TEMP': they are essential!
+eval set -- "$TEMP"
+
+while true ; do
+	case "$1" in
+	-h|--help)
+		usage
+		;;
+	-n|--dry-run)
+		shift
+		dry_run=true
+		;;
+	-v|--verbose)
+		shift
+		verbose=true
+		;;
+	-k|--key)
+		SPAN_ASSIGNMENTS_KEY="$2"
+		shift
+		shift
+		;;
+	--line-mode)
+		DEFAULT_LINE_MODE="$2"
+		shift
+		shift
+		;;
+	--)
+		shift
+		break
+		;;
+	*)
+		echo "Internal error!"
+		exit 1
+		;;
+	esac
+done
+
+if [ "$#" -eq 0 ]; then
+	echo >&2 "Missing action argument"
+	usage
+fi
+action="$1"
+shift
+
+# Validate SPAN_ASSIGNMENTS_KEY
+case "$SPAN_ASSIGNMENTS_KEY" in
+hwid|location|devpath)
+	;;
+*)
+	echo >&2 "Bad --key='$SPAN_ASSIGNMENTS_KEY' (should be: hwid|location|devpath)"
+	usage
+	;;
+esac
+
+# Validate DEFAULT_LINE_MODE
+case "$DEFAULT_LINE_MODE" in
+E1|T1|J1|'')
+	;;
+*)
+	echo >&2 "Bad --line-mode='$DEFAULT_LINE_MODE' (should be: E1|T1|J1)"
+	usage
+	;;
+esac
+
+if [ ! -d "$devbase" ]; then
+	echo >&2 "$0: Missing '$devbase' (DAHDI driver unloaded?)"
+	exit 1
+fi
+
+# Use given devices or otherwise, all existing devices
+if [ "$#" -gt 0 ]; then
+	DEVICES="$@"
+else
+	DEVICES=`ls -d $devbase/* 2>/dev/null`
+fi
+
+# Beware of special characters in attributes
+attr_clean() {
+	cat "$1" 2>/dev/null | tr -d '\n' | tr '!' '/' | tr -c 'a-zA-Z0-9/:.-' '_'
+}
+
+show_spantypes() {
+	echo "# PRI span types (E1/T1/J1)"
+	for device in $DEVICES
+	do
+		devpath=`cd "$device" && pwd -P`
+		location='@'`attr_clean "$device/location"`
+		hardware_id=`attr_clean "$device/hardware_id"`
+		cat "$device/spantype" | while read st; do
+			case "$st" in
+			*:[ETJ]1)
+				printf "%-10s %-20s %-30s %s\n" \
+					"$st" "[$hardware_id]" "$location" \
+					"$devpath"
+				;;
+			esac
+		done
+	done
+}
+
+list_pri_spantypes() {
+	find $DEVICES -follow -maxdepth 1 -name spantype | \
+		xargs cat | \
+		sed -n '/:[ETJ]1$/s/^.*://p' | \
+		sort -u | \
+		tr '\n' ' ' | \
+		sed -e 's/^ *//' -e 's/ *$//'
+}
+
+dump_config() {
+	pri_spantypes=`list_pri_spantypes`
+	num_spantypes=`echo "$pri_spantypes" | wc -w`
+	gen_default=''
+	echo '#'
+	echo "# Autogenerated by $0 on `date`"
+	echo "# Map PRI DAHDI devices to span types for E1/T1/J1"
+	echo "#"
+
+	echo "# Summary:"
+	if [ "$DEFAULT_LINE_MODE" != '' ]; then
+		gen_default="$DEFAULT_LINE_MODE"
+		echo "#  * Generating wildcard match of $gen_default."
+		echo "#    - Was run with '--line-mode=$DEFAULT_LINE_MODE'"
+	elif [ "$num_spantypes" -eq 1 ]; then
+		gen_default="$pri_spantypes"
+		echo "#  * Generating wildcard match of $gen_default."
+		echo "#    - Spans were $pri_spantypes"
+	else
+		echo "#  * Not generating wildcard match."
+		echo "#    - Was run without '--line-mode' option and span were of mixed types [$pri_spantypes]"
+	fi
+	echo "#"
+	if [ "$num_spantypes" -eq 1 ]; then
+		echo "#  * Generating a list of commented out configurations for spans."
+		echo "#    - Spans were $pri_spantypes"
+		echo "#    - Uncomment for specific overrides"
+	else
+		echo "#  * Generating a list of specific span configurations."
+		echo "#    - Spans were of mixed types: $pri_spantypes"
+	fi
+	echo "#"
+	echo ''
+
+	fmt="%-65s %s"
+	printf "$fmt\n" '# @location/hardware_id' 'span_type'
+
+	if [ "$gen_default" != '' ]; then
+		printf "$fmt\t\t# Wildcard line-mode" "*" "*:$gen_default"
+		echo ""
+	fi
+	echo ""
+	for device in $DEVICES
+	do
+		devpath=`cd "$device" && pwd -P`
+		location=`attr_clean "$device/location"`
+		hardware_id=`attr_clean "$device/hardware_id"`
+		if [ "$SPAN_ASSIGNMENTS_KEY" = 'hwid' -a "$hardware_id" != '' ]; then
+			id="$hardware_id"
+		elif [ "$SPAN_ASSIGNMENTS_KEY" = 'location' -a "$location" != '' ]; then
+			id="@$location"
+		else
+			id="$devpath"
+		fi
+		echo "# Device: [$hardware_id] @$location $devpath"
+		cat "$device/spantype" | while read st; do
+			case "$st" in
+			*:[ETJ]1)
+				if [ "$num_spantypes" -eq 1 ]; then
+					printf "#$fmt\n" "$id" "$st"
+				else
+					printf "$fmt\n" "$id" "$st"
+				fi
+				;;
+			*)
+				#echo "#    Skipped local span `echo $st | sed 's/:/ -- /'`"
+				;;
+			esac
+		done | sort -n
+		echo ''
+	done
+}
+
+# Allow comments and empty lines in config file
+filter_conf() {
+	sed -e 's/#.*//' -e '/^[ \t]*$/d' "$DAHDISPANTYPESCONF"
+}
+
+handle_span() {
+	device="$1"
+	spantype="$2"
+	attr_file="$device/spantype"
+	devpath=`cd "$device" && pwd -P`
+	devname=`echo "$device" | sed "s,$devbase/,,"`
+	location='@'`attr_clean "$device/location"`
+	hardware_id=`attr_clean "$device/hardware_id"`
+	spanno=`echo "$spantype" | cut -d: -f1`
+	#echo >&2 "DEBUG: $device $spanno ($spantype)"
+	filter_conf | while read id span_spec; do
+			sn=`echo "$span_spec" | cut -d: -f1`
+			val=`echo "$span_spec" | cut -d: -f2`
+			case "$spanno" in
+			$sn)
+				;;
+			*)
+				#echo >&2 "no-match($device $spanno): $sn"
+				continue
+				;;
+			esac
+			found=no
+			# GLOBBING
+			case "$location" in
+			$id)
+				#echo >&2 "match($id): $span_spec"
+				found=yes
+				;;
+			esac
+			case "$hardware_id" in
+			$id)
+				#echo >&2 "match([$id]): $span_spec"
+				found=yes
+				;;
+			esac
+			case "$devpath" in
+			$id)
+				#echo >&2 "match([$id]): $span_spec"
+				found=yes
+				;;
+			esac
+			if [ "$found" = 'yes' ]; then
+				if [ "$dry_run" = 'true' -o "$verbose" = 'true' ]; then
+					echo >&2 "Set $devname span $spanno = $val"
+				fi
+				if [ "$dry_run" != 'true' ]; then
+					echo "$spanno:$val" > "$attr_file"
+				fi
+			fi
+		done
+}
+
+set_all_devices() {
+	if [ ! -f "$DAHDISPANTYPESCONF" ]; then
+		echo >&2 "$0: Missing configuration '$DAHDISPANTYPESCONF'"
+		exit 1
+	fi
+	for device in $DEVICES
+	do
+		devname=`echo "$device" | sed "s,$devbase/,,"`
+		cat "$device/spantype" | while read spantype; do
+			case "$spantype" in
+			*:[ETJ]1)
+				handle_span "$device" "$spantype"
+				;;
+			*)
+				if [ "$dry_run" = 'true' -o "$verbose" = 'true' ]; then
+					echo >&2 "Skipping non-E1/T1/J1 span ($devname -- $spantype)"
+				fi
+				;;
+			esac
+		done
+	done
+}
+
+case "$action" in
+list)
+	show_spantypes
+	;;
+dumpconfig)
+	dump_config
+	;;
+set)
+	set_all_devices
+	;;
+*)
+	usage
+	;;
+esac

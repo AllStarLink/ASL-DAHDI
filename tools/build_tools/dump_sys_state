@@ -1,0 +1,76 @@
+#!/bin/sh
+
+# dump_sys_state: dump some /sys and /proc files to a directory.
+# $Id$
+#
+# Written by Tzafrir Cohen <tzafrir.cohen@xorcom.com>
+# Copyright (C) 2009, Xorcom
+#
+# All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+# 02110-1301, USA
+
+# The DAHDI-perl modules will use such a dump instead of the files from
+# the real system if DAHDI_VIRT_TOP is set to the root.
+#
+#  ./build_tools/dump_sys_state my_sys_state
+#
+#  # And then later:
+#  DAHDI_VIRT_TOP="$PWD/my_sys_state" dahdi_genconf
+
+mydir=`dirname $0`
+dahdi_sysfs_copy="$mydir/dahdi_sysfs_copy"
+
+# Give usage message on expected texts
+
+if [ "$#" -ne 0 ]; then
+	echo >&2 "Usage: $0"
+	exit 1
+fi
+
+id="sys_dump.`hostname`_`date +%F_%H.%M.%S`"
+tarball="$id.tar.gz"
+
+tmpdir=`mktemp -td 'dahdi_dump.XXXXXX'`
+echo -n >&2 "Creating ... "
+trap "[ -d '$tmpdir' ] && rm -rf '$tmpdir'" 0 1 2 15
+
+topdir="$tmpdir/$id"
+
+if [ -r /proc/bus/usb/devices ]; then
+	mkdir -p "$topdir/proc/bus/usb"
+	cp -a /proc/bus/usb/devices "$topdir/proc/bus/usb/"
+fi
+
+if [ -d /proc/dahdi ]; then
+	mkdir -p "$topdir/proc/dahdi"
+	if find /proc/dahdi -type f >/dev/null; then
+		cp -a /proc/dahdi/* "$topdir/proc/dahdi/"
+	fi
+fi
+
+if [ -d /proc/xpp ]; then
+	mkdir -p "$topdir/proc/xpp"
+	if find /proc/xpp -type f >/dev/null; then
+		cp -a /proc/xpp/* "$topdir/proc/xpp/"
+		find "$topdir/proc/xpp" -type f -name command -exec rm -f '{}' ';'
+	fi
+fi
+
+"$dahdi_sysfs_copy" "$topdir"
+echo -n >&2 "tarball ... "
+( cd "$tmpdir" && tar czf - . ) > "$tarball";
+echo >&2 "ready in '$tarball'"

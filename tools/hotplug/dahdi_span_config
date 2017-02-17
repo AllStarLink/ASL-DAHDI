@@ -1,0 +1,97 @@
+#! /bin/sh
+#
+# /usr/share/dahdi/dahdi_span_config
+#
+# Called by UDEV when a dahdi span is added/removed
+#
+
+me=`basename $0`
+dir=`dirname $0`
+LOGGER="logger -i -t '$me'"
+NAME=`basename "$DEVPATH" | tr -c 'A-Za-z0-9-' '_'`
+
+exec 2> /dev/null
+# Always redirect stderr somewhere, otherwise the shell script will die
+# when it tries to do I/O related stuff on closed file descriptor.
+# Our default is to throw it down the bit-bucket.
+#exec 2> /dev/console
+## If you wish to trace this script:
+#exec 2> "/tmp/${me}.$NAME" 1>&2
+
+# Our directory in the beginning, so we can use local lab setup
+PATH="$dir:/usr/sbin:/sbin:/usr/bin:/bin"
+export PATH
+
+set -e
+
+#echo >&2 "$0($ACTION): DEBUG($# args): '$*'"
+
+# Do we have a configuration?
+if [ -f /etc/dahdi/init.conf ]; then
+	. /etc/dahdi/init.conf
+fi
+
+if [ "$DAHDI_UDEV_DISABLE_SPANS" = 'yes' ]; then
+	echo "DAHDI_UDEV_DISABLE_SPANS=yes. Skip $DEVPATH" | $LOGGER
+	exit 0
+fi
+
+# Can we pass a different value so we can use
+# alternate (testing) configuration?
+# Meanwhile, make it hard-coded.
+DAHDICONFDIR='/etc/dahdi'
+export DAHDICONFDIR
+
+run_parts() {
+	# Have our internal "run-parts" (adapted from Fedora),
+	# as implementations differ
+	for i in `LC_ALL=C; ls -d $dir/span_config.d/*[!~,] 2>/dev/null` ; do
+		[ -d "$i" ] && continue
+		[ ! -x "$i" ] && continue
+		# Don't run *.{rpmsave,rpmorig,rpmnew,swp,cfsaved} files
+		case "$i" in
+		*.cfsaved|*.rpmsave|*.rpmorig|*.rpmnew|*.swp|*,v)
+			continue
+			;;
+		esac
+		#echo "D: Running '$i'"
+		"$i"
+	done
+}
+
+case "$ACTION" in
+add)
+	echo "$ACTION: $DEVPATH" | $LOGGER
+
+	# Old driver. These scripts probably won't work anyway.
+	if [ ! -f /sys/module/dahdi/parameters/auto_assign_spans ]; then
+		if [ -f /sys/module/dahdi ]; then
+			$LOGGER "Old driver (no auto_assign_spans parameter). Skip $DEVPATH"
+			exit 0
+		fi
+	fi
+
+	if [ $(cat /sys/module/dahdi/parameters/auto_assign_spans) -ne 0 ]; then
+		$LOGGER "auto_assign_spans=1. Skip $DEVPATH"
+		exit 0
+	fi
+
+	# Set variables
+	span_devpath="/sys$DEVPATH"
+	SPANNO=`echo "$span_devpath" | sed 's,.*/span-,,'`
+	BASECHAN=`cat "$span_devpath/basechan"`
+	CHANNELS=`cat "$span_devpath/channels"`
+	ENDCHAN=`expr "$BASECHAN" + "$CHANNELS" - 1`
+	export SPANNO BASECHAN CHANNELS ENDCHAN
+	# Background run -- don't block udev
+	run_parts 2>&1 < /dev/null | $LOGGER &
+	;;
+remove|online|offline)
+	# Nothing to do yet...
+	echo "$ACTION: $DEVPATH" | $LOGGER
+	;;
+*)
+	echo "UNHANDLED: $ACTION: $DEVPATH" | $LOGGER
+	;;
+esac
+

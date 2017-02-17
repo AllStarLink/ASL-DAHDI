@@ -1,0 +1,371 @@
+DAHDI Telephony Interface Driver
+=================================
+Asterisk Development Team <asteriskteam@digium.com>
+$Revision$, $Date$
+
+DAHDI stands for Digium Asterisk Hardware Device Interface. This
+package contains the user-space tools to configure the kernel modules
+included in the package dahdi-linux.
+
+Build Requirements
+------------------
+This package needs the headers from dahdi-linux. Thus you should install
+dahdi-linux before building dahdi-tools.
+
+Build System
+~~~~~~~~~~~~
+GCC and friends. Generally you will need to install the package gcc.
+There may be cases where you will need a specific version of gcc to build
+kernel modules.
+
+
+Extra Libraries
+~~~~~~~~~~~~~~~
+Some libraries are needed for extra utilities that are provided with
+DAHDI.
+
+- libusb is needed for building fpga_load, needed for firmware loading of
+  the Xorcom Astribank.
+- libnewt is needed to build the optional but useful utility dahdi_tool.
+
+
+Installation
+~~~~~~~~~~~~
+Note: If using `sudo` to build/install, you may need to add /sbin to your PATH.
+----------------------------------
+./configure
+make
+make install
+# To install init scripts and config files:
+#make config
+----------------------------------
+
+
+Build Tweaks
+~~~~~~~~~~~~
+Partial Build/Install
+^^^^^^^^^^^^^^^^^^^^^
+There are some make targets that are provided to build or install just
+parts of DAHDI:
+
+. Build targets:
+  - make: Build DAHDI user-space programs and libraries. partial
+    targets of it:
+    * make 'utilname': builds 'utilname' alone (e.g: `make dahdi_diag`)
+    * make utils: Build just the programs.
+    * make libs: Build libtonezone.
+    * make tests: Build testing binaries.
+. Install targets:
+  - make install: Install everything. Sub-targets of it:
+    * make install-utils: Installs most things.
+    * make install-libs: Installs libtonezone.
+  - make config: install configuration files (overriding existing ones).
+  - make install-test: Install testing binaries.
+
+
+Installation to a Subtree
+^^^^^^^^^^^^^^^^^^^^^^^^^
+The following may be useful when testing the package or when preparing a
+package for a binary distribution (such as an rpm package) installing
+onto a subtree rather than on the real system.
+
+  make install DESTDIR=targetdir
+
+This can be useful for any partial install target from the list above.
+
+
+Options For ./configure
+^^^^^^^^^^^^^^^^^^^^^^^
+The configure script executes various tests and based on them generates
+makeopts. You can pass it --with options and variable settings, for
+instance:
+
+  ./configure --without-ncurses CC="gcc-4.10"
+
+If you just want to recreate the same files without a full detection
+run, use:
+
+  ./config.status
+
+To re-run ./configure with the same parameters it was run with last
+time, use:
+
+  ./config.status --recheck
+
+
+Configuration
+-------------
+Configuration for DAHDI resides under /etc/dahdi . 
+
+/etc/dahdi/system.conf
+~~~~~~~~~~~~~~~~~~~~~~
+The main method to configure DAHDI devices is using the utility
+*dahdi_cfg*. dahdi_cfg reads data from the configuration file 
+/etc/dahdi/system.conf , figures out what configuration to send to 
+channels, and send it to the kernel.
+
+A sample annotated system.conf is included in this directory and
+installed by default. Edit it to suit your configuration. Alternatively 
+use the script dahdi_genconf to generate one that should work with your 
+system. Note that while dahdi_genconf will generate a working configuration,
+it will not automatically detect hardware echo cancellation modules.  These
+will have to be enabled manually in system.conf.
+
+/etc/dahdi/init.conf
+~~~~~~~~~~~~~~~~~~~~
+The configuration file of the dahdi init.d script is
+/etc/dahdi/init.conf . That file is used to override defaults that are 
+set at the beginning of the init.d script.
+
+Reference Configuration
+~~~~~~~~~~~~~~~~~~~~~~~
+Sample system.conf
+^^^^^^^^^^^^^^^^^^
+include::system.conf.asciidoc[]
+
+
+Sample init.conf
+^^^^^^^^^^^^^^^^
+include::init.conf.asciidoc[]
+
+
+Sample genconf_parameters
+^^^^^^^^^^^^^^^^^^^^^^^^^
+FIXME: still not properly formatted.
+
+include::genconf_parameters.asciidoc[]
+
+
+Sample assigned-spans.conf
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+include::assigned-spans.conf.asciidoc[]
+
+
+Sample span-types.conf
+^^^^^^^^^^^^^^^^^^^^^^
+include::span-types.conf.asciidoc[]
+
+
+Tonezones
+~~~~~~~~~
+The file zonedata.c contains the information about the tone zones used
+in libtonezone (and hence also in dahdi_cfg). Here is a list of those zones:
+
+include::tonezones.txt[]
+
+
+DAHDI PERL modules
+~~~~~~~~~~~~~~~~~~
+The directory xpp has, in addition to helper utilities for the
+Xorcom Astribank, a collection of PERL modules to provide information
+related to DAHDI. The PERL modules themselves are under xpp/perl_modules/ .
+In xpp/ there are several utilities that use those modules:
+- xpp-specific: dahdi_registration, xpp_sync, xpp_blink .
+- General: lsdahdi, dahdi_genconf, dahdi_hardware, dahdi_drivers
+
+The DAHDI PERL modules will currently only be automatically installed if you
+happen to install the xpp directory. Those utilities require the PERL modules
+to be installed, however they will also look for them in the directory 
+perl_modules, and thus can be run directly from the DAHDI source tree. For 
+example:
+
+  ./xpp/dahdi_hardware -v
+
+To get usage information on a program, you can also use perldoc
+(sometimes provided in a package separate from perl itself). For
+instance:
+
+  perldoc ./xpp/lsdahdi
+
+Some of them are specific for the Xorcom Astribank and described in its
+documentation. the others are:
+
+lsdahdi:: 
+  A somewhat glorified `cat /proc/dahdi/*`.
+dahdi_genconf::
+  Generates configuration based on the existing DAHDI channels and on
+  /etc/dahdi/genconf_parameters (replaces genzaptelconf as well).
+dahdi_drivers::
+  A two-liner script (not installed by default) that simply returns the
+  modules that should be modprobe-d on this system.
+dahdi_hardware:: 
+  Uses the information from SysFS and its own knowledge to show
+  what PCI/USB DAHDI hardware is connected and if it is currently used
+  by a driver. Shows also some more information for Astribanks from
+  /proc/xpp .
+
+
+PPP Support
+~~~~~~~~~~~
+DAHDI digital cards can provide data channels through PPP as
+point-to-point connections. This requires a plug-in to the PPP daemon
+that is included in the ppp/ subdirectory. To install it:
+
+1. Make sure you have the PPP source / headers installed. On Debian:
+
+   apt-get install ppp-dev
+
+2. Run 'make' on the ppp subdirectory:
+
+   make -C ppp 
+   make -C ppp install
+
+3. Make sure your kernel has support for both PPP (which is common is
+   distribution kernels and for HDLC (much less common) - CONFIG_PPP and
+   CONFIG_HDLC .
+
+
+Initialization
+--------------
+This section documents the start up sequence of the DAHDI modules.
+
+There are generally two options: explicit (using an init script) and
+implicit (run from UDEV hook scripts).
+
+Explicit
+~~~~~~~~
+The dahdi init scripts does the following tasks:
+
+* Loading the module dahdi and any other module listed in
+  /etc/dahdi/modules.
+* For xpp (Astribanks) - some specific initializations. See
+  README.Astribank.
+* Runs link:doc/dahdi_cfg.8.html[dahdi_cfg] after all modules were
+  loaded.
+* A number of other tools may need to be run:
+** link:doc/fxotune.8.html[fxotune]
+** dahdihpec_enable
+
+Only at this point Asterisk (or any other user of DAHDI) can be run.
+
+
+Implicit
+~~~~~~~~
+(Also known as "hot-plug" or "pinned-spans". This requires:
+
+* dahdi >= 2.8.0
+* Setting the module parameter auto_assign_spans of dahdi to 0
+* (Recommended) Asterisk >= 12 - which supports "dahdi create channels".
+
+When a device driver of a DAHDI device finishes initialization, it
+creates a dahdi_device kernel object. A dahdi_device represents a single
+DAHDI device (such as a PCI card) and may have several spans. If the
+value of auto_assign_spans is 1 when dahdi_device is created, spans are
+assigned automatically - each new span gets the first available span
+number and range of channels. However if it is set to 0, spans will not
+get assigned, and user space programs need to assign them. The
+low-level interface for doing so is explained in the section "Span
+Assignment" in the README of DAHDI-Linux.
+
+New Devices
+^^^^^^^^^^^
+When a kernel object is created or destroyed, the kernel sends an event
+to user space. Those events are normally handled by udevd. Configurations
+for udevd ("udev rules") may be placed in /etc/udev/rules.d or
+/lib/udev/rules.d. This package installs rules that instruct udevd to
+run the script `/usr/share/dahdi/dahdi_handle_device` on each new
+device, which runs all the scripts in `/usr/share/dahdi/handle_device.d`.
+Those scripts will:
+
+* If `/etc/dahdi/span-types.conf` exists, apply it to the device. It is
+ used for E1/T1/J1 settings. See
+ <<_sample_span_types_conf,sample span-types.conf>>.
+
+* If `/etc/dahdi/assigned-spans.conf` exists, assign the span according
+ to it (if it is not specified there: don't assign it).
+ used for E1/T1/J1 settings. See
+ <<_sample_assigned_spans_conf,sample assigned-spans.conf>>.
+
+* But if that file does not exist, assign the span to the first
+  available place.
+
+This script mainly uses the commands
+link:doc/dahdi_span_types.8.html[dahdi_span_types] and
+link:doc/dahdi_span_assignments.8.html[dahdi_span_assignments].
+
+DAHDI devices are listed under `/sys/bus/dahdi_devices/devices`.
+
+If you want to disable running this script, add the following line to
+`/etc/dahdi/init.conf`:
+.............................
+DAHDI_UDEV_DISABLE_DEVICES=yes
+.............................
+
+
+New Spans
+^^^^^^^^^
+Once a span is assigned, a kernel object will appear for it. It will be
+listed under its device. As a new kernel object was created, an event is
+sent to udev.
+
+The standard DAHDI udev rules instruct udevd to run the script
+`/usr/share/dahdi/dahdi_span_config` which runs all the scripts in
+`/usr/share/dahdi/span_config.d`. Those script configures the new
+span:
+
+* If system.conf does not exist, generates a temporary configuration
+  for the span using link:doc/dahdi_genconf.8.html[dahdi_genconf
+  system].
+
+* Runs link:doc/dahdi_cfg.8.html[dahdi_cfg] on the new span (using `-S`
+  and -C`).
+
+* Runs `asterisk -rx 'dahdi create channels'` to add the new channels
+  and spans to Asterisk (if they were configured in advance).
+
+If you want to disable running this script, add the following line to
+`/etc/dahdi/init.conf`:
+.............................
+DAHDI_UDEV_DISABLE_SPANS=yes
+.............................
+
+
+New Channels
+^^^^^^^^^^^^
+DAHDI channels have their own representation in the kernel. The standard
+udev rules that dahdi-tools includes for them, however, don't run a
+script for each device. Each DAHDI channel creates a block device file
+at /dev/dahdi/chan/'span'/'rel-chan', where 'span' and 'rel-chan' are
+each three-digit numbers (e.g: 035). 'span' is the span number and
+'rel-chan' is the channel number relative to the span.
+
+The udev rules generate the following extra symlinks under /dev/dahdi:
+
+* /dev/dahdi/'num' - the channel number. As it was originally (but
+  continues beyond 250).
+* /dev/dahdi/devices/'hardware_id'/'rel-span'/'rel-chan' - if the DAHDI
+  device has a hardware ID field, provide listing of the device's span
+  and channels.
+* /dev/dahdi/devices/@'hardware_id'/'rel-span'/'rel-chan' - likewise for
+  the connector field. It has a "@" prefix.
+
+
+include::UPGRADE.txt[]
+
+
+License
+-------
+This package is distributed under the terms of the GNU General Public License
+Version 2, except for some components which are distributed under the terms of
+the GNU Lesser General Public License Version 2.1. Both licenses are included
+in this directory, and each file is clearly marked as to which license applies.
+
+If you wish to use the DAHDI drivers in an application for which the license
+terms are not appropriate (e.g. a proprietary embedded system), licenses under
+more flexible terms can be readily obtained through Digium, Inc. at reasonable
+cost.
+
+
+Reporting Bugs
+--------------
+Please report bug and patches to the Asterisk bug tracker at
+http://bugs.digium.com/[] in the "DAHDI" category.
+
+
+Links
+-----
+- http://asterisk.org/[] - The Asterisk PBX
+- http://voip-info.org/[]
+- http://voip-info.org/wiki/view/DAHDI[]
+- http://docs.tzafrir.org.il/dahdi-tools/README.html[Up-to-date HTML version
+  of this file]
