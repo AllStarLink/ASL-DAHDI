@@ -142,6 +142,17 @@ static const char *laws[] = {
 	"A-law"
 };
 
+int ind_ioctl(int channo, int fd, int op, void *data)
+{
+struct dahdi_indirect_data ind;
+
+	ind.chan = channo;
+	ind.op = op;
+	ind.data = data;
+	return ioctl(fd,DAHDI_INDIRECT,&ind);
+}
+
+
 static bool _are_all_spans_assigned(const char *device_path)
 {
 	char attribute[1024];
@@ -1232,7 +1243,6 @@ static int rad_chanconfig(char *keyword, char *args)
 	int res = 0;
 	int x,i,n;
 	struct dahdi_radio_param p;
-	int chanfd;
 
 	toneindex = 1;
 	bzero(chans, sizeof(chans));
@@ -1241,21 +1251,9 @@ static int rad_chanconfig(char *keyword, char *args)
 		return -1;
 	for (x=1;x<DAHDI_MAX_CHANNELS;x++) {
 		if (chans[x]) {
-			const char *CHANNEL_FILENAME = "/dev/dahdi/channel";
-			chanfd = open(CHANNEL_FILENAME, O_RDWR);
-			if (-1 == chanfd) {
-				error("Failed to open '%s'.\n", CHANNEL_FILENAME);
-				exit(-1);
-			}
 
-			res = ioctl(chanfd, DAHDI_SPECIFY, &x);
-			if (res) {
-				error("Failed to open channel %d.\n", x);
-				close(chanfd);
-				continue;
-			}
 			p.radpar = DAHDI_RADPAR_NUMTONES;
-			if (ioctl(chanfd,DAHDI_RADIO_GETPARAM,&p) == -1)
+			if (ind_ioctl(x,fd,DAHDI_RADIO_GETPARAM,&p) == -1)
 				n = 0;
 			else
 				n = p.data;
@@ -1263,7 +1261,7 @@ static int rad_chanconfig(char *keyword, char *args)
 			if (n)
 			{
 				p.radpar = DAHDI_RADPAR_INITTONE;
-				if (ioctl(chanfd,DAHDI_RADIO_SETPARAM,&p) == -1) {
+				if (ind_ioctl(x,fd,DAHDI_RADIO_SETPARAM,&p) == -1) {
 					error("Cannot init tones for channel %d\n",x);
 				}
 				if (!rxtones[0]) for(i = 1; i <= n; i++)
@@ -1273,7 +1271,7 @@ static int rad_chanconfig(char *keyword, char *args)
 						p.radpar = DAHDI_RADPAR_RXTONE;
 						p.index = i;
 						p.data = rxtones[i];
-						if (ioctl(chanfd,DAHDI_RADIO_SETPARAM,&p) == -1)
+						if (ind_ioctl(x,fd,DAHDI_RADIO_SETPARAM,&p) == -1)
 							error("Cannot set rxtone on channel %d\n",x);
 					}
 					if (rxtags[i])
@@ -1281,7 +1279,7 @@ static int rad_chanconfig(char *keyword, char *args)
 						p.radpar = DAHDI_RADPAR_RXTONECLASS;
 						p.index = i;
 						p.data = rxtags[i];
-						if (ioctl(chanfd,DAHDI_RADIO_SETPARAM,&p) == -1)
+						if (ind_ioctl(x,fd,DAHDI_RADIO_SETPARAM,&p) == -1)
 							error("Cannot set rxtag on channel %d\n",x);
 					}
 					if (txtones[i])
@@ -1289,7 +1287,7 @@ static int rad_chanconfig(char *keyword, char *args)
 						p.radpar = DAHDI_RADPAR_TXTONE;
 						p.index = i;
 						p.data = txtones[i];
-						if (ioctl(chanfd,DAHDI_RADIO_SETPARAM,&p) == -1)
+						if (ind_ioctl(x,fd,DAHDI_RADIO_SETPARAM,&p) == -1)
 							error("Cannot set txtone on channel %d\n",x);
 					}
 				} else { /* if we may have DCS receive */
@@ -1298,7 +1296,7 @@ static int rad_chanconfig(char *keyword, char *args)
 						p.radpar = DAHDI_RADPAR_RXTONE;
 						p.index = 0;
 						p.data = rxtones[0];
-						if (ioctl(chanfd,DAHDI_RADIO_SETPARAM,&p) == -1)
+						if (ind_ioctl(x,fd,DAHDI_RADIO_SETPARAM,&p) == -1)
 							error("Cannot set DCS rxtone on channel %d\n",x);
 					}
 				}
@@ -1307,7 +1305,7 @@ static int rad_chanconfig(char *keyword, char *args)
 					p.radpar = DAHDI_RADPAR_TXTONE;
 					p.index = 0;
 					p.data = txtones[0];
-					if (ioctl(chanfd,DAHDI_RADIO_SETPARAM,&p) == -1)
+					if (ind_ioctl(x,fd,DAHDI_RADIO_SETPARAM,&p) == -1)
 						error("Cannot set default txtone on channel %d\n",x);
 				}
 			}
@@ -1315,43 +1313,41 @@ static int rad_chanconfig(char *keyword, char *args)
 			{
 				p.radpar = DAHDI_RADPAR_DEBOUNCETIME;
 				p.data = debouncetime;
-				if (ioctl(chanfd,DAHDI_RADIO_SETPARAM,&p) == -1)
+				if (ind_ioctl(x,fd,DAHDI_RADIO_SETPARAM,&p) == -1)
 					error("Cannot set debouncetime on channel %d\n",x);
 			}
 			if (bursttime)
 			{
 				p.radpar = DAHDI_RADPAR_BURSTTIME;
 				p.data = bursttime;
-				if (ioctl(chanfd,DAHDI_RADIO_SETPARAM,&p) == -1)
+				if (ind_ioctl(x,fd,DAHDI_RADIO_SETPARAM,&p) == -1)
 					error("Cannot set bursttime on channel %d\n",x);
 			}
 			p.radpar = DAHDI_RADPAR_DEEMP;
 			p.data = deemp;
-			ioctl(chanfd,DAHDI_RADIO_SETPARAM,&p);
+			ind_ioctl(x,fd,DAHDI_RADIO_SETPARAM,&p);
 			p.radpar = DAHDI_RADPAR_PREEMP;
 			p.data = preemp;
-			ioctl(chanfd,DAHDI_RADIO_SETPARAM,&p);
+			ind_ioctl(x,fd,DAHDI_RADIO_SETPARAM,&p);
 			p.radpar = DAHDI_RADPAR_TXGAIN;
 			p.data = txgain;
-			ioctl(chanfd,DAHDI_RADIO_SETPARAM,&p);
+			ind_ioctl(x,fd,DAHDI_RADIO_SETPARAM,&p);
 			p.radpar = DAHDI_RADPAR_RXGAIN;
 			p.data = rxgain;
-			ioctl(chanfd,DAHDI_RADIO_SETPARAM,&p);
+			ind_ioctl(x,fd,DAHDI_RADIO_SETPARAM,&p);
 			p.radpar = DAHDI_RADPAR_INVERTCOR;
 			p.data = invertcor;
-			ioctl(chanfd,DAHDI_RADIO_SETPARAM,&p);
+			ind_ioctl(x,fd,DAHDI_RADIO_SETPARAM,&p);
 			p.radpar = DAHDI_RADPAR_EXTRXTONE;
 			p.data = exttone;
-			ioctl(chanfd,DAHDI_RADIO_SETPARAM,&p);
+			ind_ioctl(x,fd,DAHDI_RADIO_SETPARAM,&p);
 			if (corthresh)
 			{
 				p.radpar = DAHDI_RADPAR_CORTHRESH;
 				p.data = corthresh - 1;
-				if (ioctl(chanfd,DAHDI_RADIO_SETPARAM,&p) == -1)
+				if (ind_ioctl(x,fd,DAHDI_RADIO_SETPARAM,&p) == -1)
 					error("Cannot set corthresh on channel %d\n",x);
 			}
-
-			close(chanfd);
 		}
 	}
 	clear_fields();

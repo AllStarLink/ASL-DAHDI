@@ -1116,8 +1116,8 @@ static void dahdi_check_conf(int x)
 #endif
 
 	/* return if no valid conf number */
-        if ((x <= 0) || (x >= DAHDI_MAX_CONF))
-                return;
+	if (x <= 0)
+		return;
 
 	/* Return if there is no alias */
 	if (!confalias[x])
@@ -1523,7 +1523,6 @@ static int dahdi_enable_hw_preechocan(struct dahdi_chan *chan)
  */
 static void dahdi_disable_hw_preechocan(struct dahdi_chan *chan)
 {
-	if (is_pseudo_chan(chan)) return;
 	if (chan->span->ops->disable_hw_preechocan)
 		chan->span->ops->disable_hw_preechocan(chan);
 }
@@ -3200,11 +3199,7 @@ static int can_open_timer(void)
 #endif
 }
 
-#ifdef DAHDI_MAX_PSEUDO_CHANNELS
-static unsigned int max_pseudo_channels = DAHDI_MAX_PSEUDO_CHANNELS;
-#else
 static unsigned int max_pseudo_channels = 512;
-#endif
 static unsigned int num_pseudo_channels;
 
 /**
@@ -7963,21 +7958,16 @@ static inline void __dahdi_process_getaudio_chunk(struct dahdi_chan *ss, unsigne
 					/* Store temp value */
 					memcpy(k, getlin, DAHDI_CHUNKSIZE * sizeof(short));
 					/* Add conf value */
-					ACSS(k, conf_sums_next[ms->_confn]);
-					/* save last one */
-					memcpy(ms->conflast2, ms->conflast1, DAHDI_CHUNKSIZE * sizeof(short));
-					memcpy(ms->conflast1, k, DAHDI_CHUNKSIZE * sizeof(short));
+					ACSS(k, conf_sums[ms->_confn]);
 					/*  get amount actually added */
-					SCSS(ms->conflast1, conf_sums_next[ms->_confn]);
+					memcpy(ms->conflast, k, DAHDI_CHUNKSIZE * sizeof(short));
+					SCSS(ms->conflast, conf_sums[ms->_confn]);
 					/* Really add in new value */
-					ACSS(conf_sums_next[ms->_confn], ms->conflast1);
-					/* add in stuff from pseudo-receive, too */
-					ACSS(getlin,ms->putlin_pseudo);
+					ACSS(conf_sums[ms->_confn], ms->conflast);
 					memcpy(ms->getlin, getlin, DAHDI_CHUNKSIZE * sizeof(short));
 				} else {
-					memset(ms->conflast1, 0, DAHDI_CHUNKSIZE * sizeof(short));
-					memset(ms->conflast2, 0, DAHDI_CHUNKSIZE * sizeof(short));
-					memset(getlin, 0, DAHDI_CHUNKSIZE * sizeof(short));
+					memset(ms->conflast, 0, DAHDI_CHUNKSIZE * sizeof(short));
+					memcpy(getlin, ms->getlin, DAHDI_CHUNKSIZE * sizeof(short));
 				}
 				txb[0] = DAHDI_LIN2X(0, ms);
 				memset(txb + 1, txb[0], DAHDI_CHUNKSIZE - 1);
@@ -8906,7 +8896,7 @@ static inline void __dahdi_process_putaudio_chunk(struct dahdi_chan *ss, unsigne
 	}
 	for (x=0;x<DAHDI_CHUNKSIZE;x++) {
 		rxb[x] = ms->rxgain[rxb[x]];
-		putlin[x] = ms->putlin_pseudo[x] = DAHDI_XLAW(rxb[x], ms);
+		putlin[x] = DAHDI_XLAW(rxb[x], ms);
 	}
 
 #ifndef CONFIG_DAHDI_NO_ECHOCAN_DISABLE
@@ -9076,20 +9066,9 @@ static inline void __dahdi_process_putaudio_chunk(struct dahdi_chan *ss, unsigne
 		case DAHDI_CONF_CONF:	/* Normal conference mode */
 			if (is_pseudo_chan(ms)) /* if a pseudo-channel */
 			   {
-				if (ms->confmode & DAHDI_CONF_TALKER) {
-					/* Store temp value */
-					memcpy(k, putlin, DAHDI_CHUNKSIZE * sizeof(short));
-					/* Add conf value */
-					ACSS(k, conf_sums_next[ms->_confn]);
-					/*  get amount actually added */
-					memcpy(ms->conflast, k, DAHDI_CHUNKSIZE * sizeof(short));
-					SCSS(ms->conflast, conf_sums_next[ms->_confn]);
-					/* Really add in new value */
-					ACSS(conf_sums_next[ms->_confn], ms->conflast);
-				} else memset(ms->conflast, 0, DAHDI_CHUNKSIZE * sizeof(short));
 				if (ms->confmode & DAHDI_CONF_LISTENER) {
 					/* Subtract out last sample written to conf */
-					SCSS(putlin, ms->conflast2);
+					SCSS(putlin, ms->conflast);
 					/* Add in conference */
 					ACSS(putlin, conf_sums[ms->_confn]);
 				}
@@ -9163,7 +9142,7 @@ static void __putbuf_chunk(struct dahdi_chan *ss, unsigned char *rxb, int bytes)
 	int oldbuf;
 	int eof=0;
 	int abort=0;
-	int res = 0;
+	int res;
 	int left, x;
 
 	while(bytes) {

@@ -138,7 +138,7 @@ struct encdec
 	unsigned char cttx[NUM_CHANS];
 	unsigned char saudio_ctrl[NUM_CHANS];
 	unsigned char saudio_setup[NUM_CHANS];
-	unsigned short txcode[NUM_CHANS];
+	unsigned char txcode[NUM_CHANS];
 	unsigned long lastcmd;
 	int myindex[NUM_CHANS];
 	unsigned long waittime;
@@ -202,7 +202,8 @@ struct pciradio {
 #define	RADMODE_IGNORECT 16
 #define	RADMODE_NOENCODE 32
 	unsigned char corthresh[NUM_CHANS];
-	struct dahdi_chan *chans[NUM_CHANS];
+	struct dahdi_chan _chans[NUM_CHANS];
+	struct dahdi_chan *chans;
 	unsigned char mx828_addr;
 	struct encdec encdec;
 	unsigned long lastremcmd;
@@ -693,10 +694,10 @@ static inline void pciradio_transmitprep(struct pciradio *rad, unsigned char int
 	for (x=0;x<DAHDI_CHUNKSIZE;x++) {
 		/* Send a sample, as a 32-bit word */
 		writechunk[x] = 0;
-		writechunk[x] |= (rad->chans[0]->writechunk[x] << 24);
-		writechunk[x] |= (rad->chans[1]->writechunk[x] << 16);
-		writechunk[x] |= (rad->chans[2]->writechunk[x] << 8);
-		writechunk[x] |= (rad->chans[3]->writechunk[x]);
+		writechunk[x] |= (rad->chans[0].writechunk[x] << 24);
+		writechunk[x] |= (rad->chans[1].writechunk[x] << 16);
+		writechunk[x] |= (rad->chans[2].writechunk[x] << 8);
+		writechunk[x] |= (rad->chans[3].writechunk[x]);
 	}
 }
 
@@ -711,13 +712,13 @@ static inline void pciradio_receiveprep(struct pciradio *rad, unsigned char ints
 		/* Read is at interrupt address.  Valid data is available at normal offset */
 		readchunk = rad->readchunk;
 	for (x=0;x<DAHDI_CHUNKSIZE;x++) {
-		rad->chans[0]->readchunk[x] = (readchunk[x] >> 24) & 0xff;
-		rad->chans[1]->readchunk[x] = (readchunk[x] >> 16) & 0xff;
-		rad->chans[2]->readchunk[x] = (readchunk[x] >> 8) & 0xff;
-		rad->chans[3]->readchunk[x] = (readchunk[x]) & 0xff;
+		rad->chans[0].readchunk[x] = (readchunk[x] >> 24) & 0xff;
+		rad->chans[1].readchunk[x] = (readchunk[x] >> 16) & 0xff;
+		rad->chans[2].readchunk[x] = (readchunk[x] >> 8) & 0xff;
+		rad->chans[3].readchunk[x] = (readchunk[x]) & 0xff;
 	}
 	for (x=0;x<rad->nchans;x++) {
-		dahdi_ec_chunk(rad->chans[x], rad->chans[x]->readchunk, rad->chans[x]->writechunk);
+		dahdi_ec_chunk(&rad->chans[x], rad->chans[x].readchunk, rad->chans[x].writechunk);
 	}
 	dahdi_receive(&rad->span);
 }
@@ -906,10 +907,10 @@ DAHDI_IRQ_HANDLER(pciradio_interrupt)
 								else
 								    printk(KERN_DEBUG "Chan %d got rx\n",x + 1);
 							}
-						    dahdi_hooksig(rad->chans[x],DAHDI_RXSIG_OFFHOOK);
+						    dahdi_hooksig(&rad->chans[x],DAHDI_RXSIG_OFFHOOK);
 						} else {
 						    if (debug) printk(KERN_DEBUG "Chan %d lost rx\n",x + 1);
-						    dahdi_hooksig(rad->chans[x],DAHDI_RXSIG_ONHOOK);
+						    dahdi_hooksig(&rad->chans[x],DAHDI_RXSIG_ONHOOK);
 						}
 						rad->encdec.req[x] = 1; 
 					}
@@ -1471,38 +1472,22 @@ static int pciradio_initialize(struct pciradio *rad)
 	int x;
 
 	/* DAHDI stuff */
-	rad->ddev = dahdi_create_device();
-	if (!rad->ddev)
-		return -ENOMEM;
 	sprintf(rad->span.name, "PCIRADIO/%d", rad->pos);
 	sprintf(rad->span.desc, "Board %d", rad->pos + 1);
-	rad->ddev->manufacturer = "QRV Communications";
-	rad->ddev->devicetype = "PCIRADIO Card";
-	rad->ddev->location = kasprintf(GFP_KERNEL, "PCI Bus %02d Slot %02d",
-				      rad->dev->bus->number,
-				      PCI_SLOT(rad->dev->devfn) + 1);
-	if (!rad->ddev->location) {
-		dahdi_free_device(rad->ddev);
-		rad->ddev = NULL;
-		return -ENOMEM;
-	}
-
 	rad->span.deflaw = DAHDI_LAW_MULAW;
 	for (x=0;x<rad->nchans;x++) {
-		sprintf(rad->chans[x]->name, "PCIRADIO/%d/%d", rad->pos, x);
-		rad->chans[x]->sigcap = DAHDI_SIG_SF | DAHDI_SIG_EM;
-		rad->chans[x]->chanpos = x+1;
-		rad->chans[x]->pvt = rad;
+		sprintf(rad->chans[x].name, "PCIRADIO/%d/%d", rad->pos, x);
+		rad->chans[x].sigcap = DAHDI_SIG_SF | DAHDI_SIG_EM;
+		rad->chans[x].chanpos = x+1;
+		rad->chans[x].pvt = rad;
 		rad->debouncetime[x] = RAD_GOTRX_DEBOUNCE_TIME;
 		rad->ctcssacquiretime[x] = RAD_CTCSS_ACQUIRE_TIME;
 		rad->ctcsstalkofftime[x] = RAD_CTCSS_TALKOFF_TIME;
 	}
-	rad->span.chans = rad->chans;
+	rad->span.chans = &rad->chans;
 	rad->span.channels = rad->nchans;
 	rad->span.flags = DAHDI_FLAG_RBS;
 	rad->span.ops = &pciradio_span_ops;
-	rad->span.spantype = SPANTYPE_ANALOG_MIXED;
-	list_add_tail(&rad->span.device_node, &rad->ddev->spans);
 
 	if (dahdi_register_device(rad->ddev, &rad->dev->dev)) {
 		printk(KERN_NOTICE "Unable to register span with DAHDI\n");
@@ -1731,24 +1716,14 @@ static int __devinit pciradio_init_one(struct pci_dev *pdev, const struct pci_de
 		if (rad) {
 			int i;
 
-			memset(rad, 0, sizeof(struct pciradio));
 			ifaces[x] = rad;
-//			rad->chans = rad->_chans;
+			rad->chans = rad->_chans;
+			memset(rad, 0, sizeof(struct pciradio));
 			spin_lock_init(&rad->lock);
 			rad->nchans = 4;
 			rad->ioaddr = pci_resource_start(pdev, 0);
 			rad->dev = pdev;
 			rad->pos = x;
-			for (i = 0; i < rad->nchans; i++) {
-				if (!(rad->chans[i] = kmalloc(sizeof(*rad->chans[i]), GFP_KERNEL))) {
-					while (i) {
-						kfree(rad->chans[--i]);
-					}
-					kfree(rad);
-					return -ENOMEM;
-				}
-				memset(rad->chans[i], 0, sizeof(*rad->chans[i]));
-			}
 			for(i = 0; i < rad->nchans; i++) rad->lasttx[x] = rad->gotrx1[i] = -1;
 			/* Keep track of whether we need to free the region */
 			if (request_region(rad->ioaddr, 0xff, "pciradio")) 
@@ -1827,7 +1802,6 @@ static int __devinit pciradio_init_one(struct pci_dev *pdev, const struct pci_de
 
 			/* Start DMA */
 			pciradio_start_dma(rad);
-
 			printk(KERN_INFO "Found a PCI Radio Card\n");
 			res = 0;
 		} else
