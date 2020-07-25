@@ -34,6 +34,8 @@
  */
 #define	XPP_PROTOCOL_VERSION	30
 
+struct unit_descriptor;
+
 struct xpd_addr {
 	uint8_t subunit:SUBUNIT_BITS;
 	uint8_t reserved:1;
@@ -127,7 +129,6 @@ bool valid_xpd_addr(const struct xpd_addr *addr);
 #define	XENTRY(prototab, module, op) \
 	[ XPROTO_NAME(module, op) ] = {			\
 		.handler = XPROTO_HANDLER(module, op),	\
-		.datalen = RPACKET_SIZE(module, op),	\
 		.name = #op,				\
 		.table = &PROTO_TABLE(prototab)		\
 	}
@@ -167,35 +168,84 @@ bool valid_xpd_addr(const struct xpd_addr *addr);
 
 #define	MULTIBYTE_MAX_LEN	5	/* FPGA firmware limitation */
 
-typedef struct reg_cmd {
+struct reg_cmd_header {
 	__u8 bytes:3;		/* Length (for Multibyte)       */
 	__u8 eoframe:1;		/* For BRI -- end of frame      */
 	__u8 portnum:3;		/* For port specific registers  */
 	__u8 is_multibyte:1;
+} PACKED;
+
+struct reg_cmd_REG {
+	__u8 reserved:3;
+	__u8 do_expander:1;
+	__u8 do_datah:1;
+	__u8 do_subreg:1;
+	__u8 read_request:1;
+	__u8 all_ports_broadcast:1;
+	__u8 regnum;
+	__u8 subreg;
+	__u8 data_low;
+	__u8 data_high;
+} PACKED;
+
+struct reg_cmd_RAM {
+	__u8 reserved:4;
+	__u8 do_datah:1;
+	__u8 do_subreg:1;
+	__u8 read_request:1;
+	__u8 all_ports_broadcast:1;
+	__u8 addr_low;
+	__u8 addr_high;
+	__u8 data_0;
+	__u8 data_1;
+	__u8 data_2;
+	__u8 data_3;
+} PACKED;
+
+typedef struct reg_cmd {
+	struct reg_cmd_header h;
 	union {
-		struct {
-			__u8 reserved:4;
-			__u8 do_datah:1;
-			__u8 do_subreg:1;
-			__u8 read_request:1;
-			__u8 all_ports_broadcast:1;
-			__u8 regnum;
-			__u8 subreg;
-			__u8 data_low;
-			__u8 data_high;
-		} PACKED r;
+		struct reg_cmd_REG r;
 		/* For Write-Multibyte commands in BRI */
 		struct {
 			__u8 xdata[MULTIBYTE_MAX_LEN];
 		} PACKED d;
+		struct reg_cmd_RAM m;
 	} PACKED alt;
 } PACKED reg_cmd_t;
 
 /* Shortcut access macros */
+#define	REG_CMD_SIZE(variant)		(sizeof(struct reg_cmd_ ## variant))
 #define	REG_FIELD(regptr, member)	((regptr)->alt.r.member)
 #define	REG_XDATA(regptr)		((regptr)->alt.d.xdata)
+#define	REG_FIELD_RAM(regptr, member)	((regptr)->alt.m.member)
 
 #ifdef __KERNEL__
+
+#define XFRAME_CMD_LEN(variant) \
+	( \
+		sizeof(struct xpacket_header) +		\
+		sizeof(struct reg_cmd_header) +		\
+		sizeof(struct reg_cmd_ ## variant)	\
+	)
+
+#define	XFRAME_NEW_REG_CMD(frm, p, xbus, card, variant, to) \
+	do {							\
+		int	pack_len = XFRAME_CMD_LEN(variant);	\
+								\
+		if (!XBUS_FLAGS(xbus, CONNECTED))		\
+			return -ENODEV;				\
+		(frm) = ALLOC_SEND_XFRAME(xbus);		\
+		if (!(frm))					\
+			return -ENOMEM;				\
+		(p) = xframe_next_packet(frm, pack_len);	\
+		if (!(p))					\
+			return -ENOMEM;				\
+		XPACKET_INIT(p, card, REGISTER_REQUEST, to, 0, 0);		\
+		XPACKET_LEN(p) = pack_len;			\
+		(frm)->usec_towait = 0;				\
+	} while (0)
+
 /*----------------- protocol tables ----------------------------------*/
 
 typedef struct xproto_entry xproto_entry_t;
@@ -245,12 +295,14 @@ struct phoneops {
 	int (*card_open) (xpd_t *xpd, lineno_t pos);
 	int (*card_close) (xpd_t *xpd, lineno_t pos);
 	int (*card_state) (xpd_t *xpd, bool on);
+	int (*span_assigned) (xpd_t *xpd);
 };
 
 struct xops {
 	xpd_t *(*card_new) (xbus_t *xbus, int unit, int subunit,
-			    const xproto_table_t *proto_table, __u8 subtype,
-			    int subunits, int subunit_ports, bool to_phone);
+			    const xproto_table_t *proto_table,
+			    const struct unit_descriptor *unit_descriptor,
+			    bool to_phone);
 	int (*card_init) (xbus_t *xbus, xpd_t *xpd);
 	int (*card_remove) (xbus_t *xbus, xpd_t *xpd);
 	int (*card_tick) (xbus_t *xbus, xpd_t *xpd);
@@ -259,7 +311,6 @@ struct xops {
 
 struct xproto_entry {
 	xproto_handler_t handler;
-	int datalen;
 	const char *name;
 	xproto_table_t *table;
 };

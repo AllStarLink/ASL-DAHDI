@@ -100,7 +100,7 @@ enum fxo_leds {
 #define	DAA_READ	0
 #define	DAA_DIRECT_REQUEST(xbus, xpd, port, writing, reg, dL)	\
 		xpp_register_request((xbus), (xpd), (port), \
-		(writing), (reg), 0, 0, (dL), 0, 0, 0)
+		(writing), (reg), 0, 0, (dL), 0, 0, 0, 0)
 
 /*---------------- FXO Protocol Commands ----------------------------------*/
 
@@ -115,7 +115,6 @@ static const struct file_operations proc_xpd_metering_ops;
 static void dahdi_report_battery(xpd_t *xpd, lineno_t chan);
 static void report_polarity_reversal(xpd_t *xpd, xportno_t portno, char *msg);
 
-#define	PROC_REGISTER_FNAME	"slics"
 #define	PROC_FXO_INFO_FNAME	"fxo_info"
 #ifdef	WITH_METERING
 #define	PROC_METERING_FNAME	"metering_read"
@@ -488,11 +487,13 @@ static int fxo_proc_create(xbus_t *xbus, xpd_t *xpd)
 }
 
 static xpd_t *FXO_card_new(xbus_t *xbus, int unit, int subunit,
-			   const xproto_table_t *proto_table, __u8 subtype,
-			   int subunits, int subunit_ports, bool to_phone)
+			   const xproto_table_t *proto_table,
+			   const struct unit_descriptor *unit_descriptor,
+			   bool to_phone)
 {
 	xpd_t *xpd = NULL;
 	int channels;
+	int subunit_ports;
 
 	if (to_phone) {
 		XBUS_NOTICE(xbus,
@@ -501,13 +502,14 @@ static xpd_t *FXO_card_new(xbus_t *xbus, int unit, int subunit,
 			unit, subunit);
 		return NULL;
 	}
-	if (subtype == 2)
+	subunit_ports = unit_descriptor->numchips * unit_descriptor->ports_per_chip;
+	if (unit_descriptor->subtype == 2)
 		channels = min(2, subunit_ports);
 	else
 		channels = min(8, subunit_ports);
 	xpd =
-	    xpd_alloc(xbus, unit, subunit, subtype, subunits,
-		      sizeof(struct FXO_priv_data), proto_table, channels);
+	    xpd_alloc(xbus, unit, subunit,
+		      sizeof(struct FXO_priv_data), proto_table, unit_descriptor, channels);
 	if (!xpd)
 		return NULL;
 	PHONEDEV(xpd).direction = TO_PSTN;
@@ -618,12 +620,28 @@ static int FXO_card_dahdi_postregistration(xpd_t *xpd, bool on)
 	BUG_ON(!priv);
 	XPD_DBG(GENERAL, xpd, "%s\n", (on) ? "ON" : "OFF");
 	for_each_line(xpd, i) {
-		dahdi_report_battery(xpd, i);
 		MARK_OFF(priv, i, LED_GREEN);
 		msleep(2);
 		MARK_OFF(priv, i, LED_RED);
 		msleep(2);
 	}
+	return 0;
+}
+
+static int FXO_span_assigned(xpd_t *xpd)
+{
+	xbus_t *xbus;
+	struct FXO_priv_data *priv;
+	int i;
+
+	BUG_ON(!xpd);
+	xbus = xpd->xbus;
+	BUG_ON(!xbus);
+	priv = xpd->priv;
+	BUG_ON(!priv);
+	XPD_DBG(GENERAL, xpd, "\n");
+	for_each_line(xpd, i)
+		dahdi_report_battery(xpd, i);
 	return 0;
 }
 
@@ -1247,7 +1265,7 @@ static int FXO_card_register_reply(xbus_t *xbus, xpd_t *xpd, reg_cmd_t *info)
 
 	priv = xpd->priv;
 	BUG_ON(!priv);
-	portno = info->portnum;
+	portno = info->h.portnum;
 	switch (REG_FIELD(info, regnum)) {
 	case REG_INTERRUPT_SRC:
 		got_chip_interrupt(xpd, REG_FIELD(info, data_low), portno);
@@ -1265,7 +1283,7 @@ static int FXO_card_register_reply(xbus_t *xbus, xpd_t *xpd, reg_cmd_t *info)
 #endif
 	}
 	LINE_DBG(REGS, xpd, portno, "%c reg_num=0x%X, dataL=0x%X dataH=0x%X\n",
-		 ((info->bytes == 3) ? 'I' : 'D'), REG_FIELD(info, regnum),
+		 ((info->h.bytes == 3) ? 'I' : 'D'), REG_FIELD(info, regnum),
 		 REG_FIELD(info, data_low), REG_FIELD(info, data_high));
 	/* Update /proc info only if reply relate to the last slic read request */
 	if (REG_FIELD(&xpd->requested_reply, regnum) ==
@@ -1312,6 +1330,7 @@ static const struct phoneops fxo_phoneops = {
 	.card_ioctl = FXO_card_ioctl,
 	.card_open = FXO_card_open,
 	.card_state = FXO_card_state,
+	.span_assigned = FXO_span_assigned,
 };
 
 static xproto_table_t PROTO_TABLE(FXO) = {
@@ -1553,9 +1572,9 @@ static int fxo_xpd_probe(struct device *dev)
 
 	xpd = dev_to_xpd(dev);
 	/* Is it our device? */
-	if (xpd->type != XPD_TYPE_FXO) {
+	if (xpd->xpd_type != XPD_TYPE_FXO) {
 		XPD_ERR(xpd, "drop suggestion for %s (%d)\n", dev_name(dev),
-			xpd->type);
+			xpd->xpd_type);
 		return -EINVAL;
 	}
 	XPD_DBG(DEVICES, xpd, "SYSFS\n");
@@ -1581,7 +1600,7 @@ static int fxo_xpd_remove(struct device *dev)
 }
 
 static struct xpd_driver fxo_driver = {
-	.type = XPD_TYPE_FXO,
+	.xpd_type = XPD_TYPE_FXO,
 	.driver = {
 		   .name = "fxo",
 		   .owner = THIS_MODULE,
@@ -1600,7 +1619,6 @@ static int __init card_fxo_startup(void)
 	}
 	if ((ret = xpd_driver_register(&fxo_driver.driver)) < 0)
 		return ret;
-	INFO("revision %s\n", XPP_VERSION);
 #ifdef	WITH_METERING
 	INFO("FEATURE: WITH METERING Detection\n");
 #else
@@ -1619,7 +1637,6 @@ static void __exit card_fxo_cleanup(void)
 MODULE_DESCRIPTION("XPP FXO Card Driver");
 MODULE_AUTHOR("Oron Peled <oron@actcom.co.il>");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(XPP_VERSION);
 MODULE_ALIAS_XPD(XPD_TYPE_FXO);
 
 module_init(card_fxo_startup);

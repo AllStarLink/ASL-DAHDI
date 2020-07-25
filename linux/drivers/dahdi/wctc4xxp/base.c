@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <linux/kmod.h>
 #include <linux/sched.h>
+
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -40,7 +41,12 @@
 
 #include <stdbool.h>
 
-#include "dahdi/kernel.h"
+#include <dahdi/kernel.h>
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
+#include <linux/sched/signal.h>
+#endif /* 4.11.0 */
+
 
 #include <linux/io.h>
 
@@ -3693,11 +3699,16 @@ wctc4xxp_send_commands(struct wcdte *wc, struct list_head *to_send)
 		wctc4xxp_transmit_cmd(wc, cmd);
 	}
 }
-
 static void
+#ifndef init_timer
+wctc4xxp_watchdog(struct timer_list *t)
+{
+       struct wcdte *wc = from_timer(wc, t, watchdog);
+#else  /* Compatibility for pre 4.15 interface */
 wctc4xxp_watchdog(unsigned long data)
 {
 	struct wcdte *wc = (struct wcdte *)data;
+#endif
 	struct tcb *cmd, *temp;
 	LIST_HEAD(cmds_to_retry);
 	const int MAX_RETRIES = 5;
@@ -4089,7 +4100,8 @@ wctc4xxp_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	wc->watchdog.data = (unsigned long)wc;
 	init_timer(&wc->watchdog);
 #	else
-	setup_timer(&wc->watchdog, wctc4xxp_watchdog, (unsigned long)wc);
+	/*timer_setup(&wc->watchdog, wctc4xxp_watchdog, (unsigned long)wc);*/
+	timer_setup(&wc->watchdog, wctc4xxp_watchdog, 0);
 #	endif
 
 	/* ------------------------------------------------------------------

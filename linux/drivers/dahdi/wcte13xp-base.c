@@ -2380,14 +2380,18 @@ static void te13x_handle_interrupt(struct wcxb *xb, u32 pending)
 		handle_falc_int(wc);
 	}
 }
-
+#ifndef init_timer
+static void te13xp_timer(struct timer_list *t)
+{
+       struct t13x *wc = from_timer(wc, t, timer);
+#else  /* Compatibility for pre 4.15 interface */
 static void te13xp_timer(unsigned long data)
 {
 	struct t13x *wc = (struct t13x *)data;
 
 	if (unlikely(!test_bit(INITIALIZED, &wc->bit_flags)))
 		return;
-
+#endif
 	queue_work(wc->wq, &wc->timer_work);
 	return;
 }
@@ -2582,7 +2586,8 @@ static int __devinit te13xp_init_one(struct pci_dev *pdev,
 	wc->ledstate = -1;
 	spin_lock_init(&wc->reglock);
 	mutex_init(&wc->lock);
-	setup_timer(&wc->timer, te13xp_timer, (unsigned long)wc);
+	/*setup_timer(&wc->timer, te13xp_timer, (unsigned long)wc);*/
+	timer_setup(&wc->timer, te13xp_timer, 0);
 
 #	if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
 	INIT_WORK(&wc->timer_work, timer_work_func, wc);

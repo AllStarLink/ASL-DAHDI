@@ -681,7 +681,14 @@ static int ethmf_delay_dec(void)
  * Timer callback function to allow all spans to be added, prior to any of
  * them being used.
  */
-static void timer_callback(unsigned long param)
+/*static void timer_callback(unsigned long param)*/
+static void timer_callback(
+#ifdef init_timer      /* Compatibility for pre 4.15 interface */
+               unsigned long ignored
+#else
+               struct timer_list *ignored
+#endif
+)
 {
 	if (ethmf_delay_dec()) {
 		if (!atomic_read(&timer_deleted)) {
@@ -764,9 +771,10 @@ static const struct file_operations ztdethmf_proc_fops = {
 
 static int __init ztdethmf_init(void)
 {
-	init_timer(&timer);
+	/*init_timer(&timer);*/
+	timer_setup(&timer, &timer_callback, 0);
 	timer.expires = jiffies + HZ;
-	timer.function = &timer_callback;
+	/*timer.function = &timer_callback;*/
 	if (!timer_pending(&timer))
 		add_timer(&timer);
 

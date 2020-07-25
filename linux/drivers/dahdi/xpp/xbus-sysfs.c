@@ -339,6 +339,7 @@ static DEVICE_ATTR_READER(dahdi_registration_show, dev, buf)
 	return len;
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 13, 0)
 static struct device_attribute xbus_dev_attrs[] = {
 	__ATTR_RO(connector),
 	__ATTR_RO(label),
@@ -358,6 +359,39 @@ static struct device_attribute xbus_dev_attrs[] = {
 		dahdi_registration_store),
 	__ATTR_NULL,
 };
+#else
+static DEVICE_ATTR_RO(connector);
+static DEVICE_ATTR_RO(label);
+static DEVICE_ATTR_RO(status);
+static DEVICE_ATTR_RO(timing);
+static DEVICE_ATTR_RO(refcount_xbus);
+static DEVICE_ATTR_RO(waitfor_xpds);
+static DEVICE_ATTR_RO(driftinfo);
+static DEVICE_ATTR_WO(cls);
+static DEVICE_ATTR_RW(xbus_state);
+#ifdef	SAMPLE_TICKS
+static DEVICE_ATTR_RO(samples);
+#endif
+static DEVICE_ATTR_RW(dahdi_registration);
+
+static struct attribute *xbus_dev_attrs[] = {
+   &dev_attr_connector.attr,
+   &dev_attr_label.attr,
+   &dev_attr_status.attr,
+   &dev_attr_timing.attr,
+   &dev_attr_refcount_xbus.attr,
+   &dev_attr_waitfor_xpds.attr,
+   &dev_attr_driftinfo.attr,
+   &dev_attr_cls.attr,
+   &dev_attr_xbus_state.attr,
+#ifdef	SAMPLE_TICKS
+   &dev_attr_samples.attr,
+#endif
+   &dev_attr_dahdi_registration.attr,
+   NULL,
+};
+ATTRIBUTE_GROUPS(xbus_dev);
+#endif
 
 static int astribank_match(struct device *dev, struct device_driver *driver)
 {
@@ -457,7 +491,11 @@ static struct bus_type toplevel_bus_type = {
 	.name = "astribanks",
 	.match = astribank_match,
 	.uevent = astribank_uevent,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 13, 0)
 	.dev_attrs = xbus_dev_attrs,
+#else
+	.dev_groups = xbus_dev_groups,
+#endif
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0)
 	.drv_attrs = xpp_attrs,
 #else
@@ -518,13 +556,25 @@ static DEVICE_ATTR_READER(chipregs_show, dev, buf)
 			 REG_FIELD(regs, data_high));
 	} else
 		datah_str[0] = '\0';
-	if (REG_FIELD(regs, do_subreg)) {
+	if (regs->h.bytes ==  REG_CMD_SIZE(RAM)) {
+		len +=
+		    sprintf(buf + len, "#CH\tOP\tAL\tAH\tD0\tD1\tD2\tD3\n");
+		len +=
+		    sprintf(buf + len, "%2d\tRR\t%02X\t%02X\t%02X\t%02X\t%02X\t%02X\n",
+			    regs->h.portnum,
+			    REG_FIELD_RAM(regs, addr_low),
+			    REG_FIELD_RAM(regs, addr_high),
+			    REG_FIELD_RAM(regs, data_0),
+			    REG_FIELD_RAM(regs, data_1),
+			    REG_FIELD_RAM(regs, data_2),
+			    REG_FIELD_RAM(regs, data_3));
+	} else if (REG_FIELD(regs, do_subreg)) {
 		len +=
 		    sprintf(buf + len, "#CH\tOP\tReg.\tSub\tDL%s\n",
 			    (do_datah) ? "\tDH" : "");
 		len +=
 		    sprintf(buf + len, "%2d\tRS\t%02X\t%02X\t%02X%s\n",
-			    regs->portnum, REG_FIELD(regs, regnum),
+			    regs->h.portnum, REG_FIELD(regs, regnum),
 			    REG_FIELD(regs, subreg), REG_FIELD(regs, data_low),
 			    datah_str);
 	} else {
@@ -532,7 +582,7 @@ static DEVICE_ATTR_READER(chipregs_show, dev, buf)
 		    sprintf(buf + len, "#CH\tOP\tReg.\tDL%s\n",
 			    (do_datah) ? "\tDH" : "");
 		len +=
-		    sprintf(buf + len, "%2d\tRD\t%02X\t%02X%s\n", regs->portnum,
+		    sprintf(buf + len, "%2d\tRD\t%02X\t%02X%s\n", regs->h.portnum,
 			    REG_FIELD(regs, regnum), REG_FIELD(regs, data_low),
 			    datah_str);
 	}
@@ -676,6 +726,19 @@ static DEVICE_ATTR_READER(type_show, dev, buf)
 	return len;
 }
 
+static DEVICE_ATTR_READER(hwid_show, dev, buf)
+{
+	xpd_t *xpd;
+	int len = 0;
+
+	BUG_ON(!dev);
+	xpd = dev_to_xpd(dev);
+	if (!xpd)
+		return -ENODEV;
+	len += sprintf(buf, "%d.%d\n", XPD_HW(xpd).type, XPD_HW(xpd).subtype);
+	return len;
+}
+
 static DEVICE_ATTR_READER(offhook_show, dev, buf)
 {
 	xpd_t *xpd;
@@ -731,34 +794,63 @@ static int xpd_match(struct device *dev, struct device_driver *driver)
 
 	xpd_driver = driver_to_xpd_driver(driver);
 	xpd = dev_to_xpd(dev);
-	if (xpd_driver->type != xpd->type) {
+	if (xpd_driver->xpd_type != xpd->xpd_type) {
 		XPD_DBG(DEVICES, xpd,
-			"SYSFS match fail: xpd->type = %d, "
-			"xpd_driver->type = %d\n",
-			xpd->type, xpd_driver->type);
+			"SYSFS match fail: xpd->xpd_type = %d, "
+			"xpd_driver->xpd_type = %d\n",
+			xpd->xpd_type, xpd_driver->xpd_type);
 		return 0;
 	}
 	XPD_DBG(DEVICES, xpd,
-		"SYSFS MATCH: type=%d dev->bus_id = %s, driver->name = %s\n",
-		xpd->type, dev_name(dev), driver->name);
+		"SYSFS MATCH: xpd_type=%d dev->bus_id = %s, driver->name = %s\n",
+		xpd->xpd_type, dev_name(dev), driver->name);
 	return 1;
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 13, 0)
 static struct device_attribute xpd_dev_attrs[] = {
 	__ATTR(chipregs, S_IRUGO | S_IWUSR, chipregs_show, chipregs_store),
 	__ATTR(blink, S_IRUGO | S_IWUSR, blink_show, blink_store),
 	__ATTR(span, S_IRUGO | S_IWUSR, span_show, span_store),
 	__ATTR_RO(type),
+	__ATTR_RO(hwid),
 	__ATTR_RO(offhook),
 	__ATTR_RO(timing_priority),
 	__ATTR_RO(refcount_xpd),
 	__ATTR_NULL,
 };
+#else
+static DEVICE_ATTR_RW(chipregs);
+static DEVICE_ATTR_RW(blink);
+static DEVICE_ATTR_RW(span);
+static DEVICE_ATTR_RO(type);
+static DEVICE_ATTR_RO(hwid);
+static DEVICE_ATTR_RO(offhook);
+static DEVICE_ATTR_RO(timing_priority);
+static DEVICE_ATTR_RO(refcount_xpd);
+
+static struct attribute *xpd_dev_attrs[] = {
+   &dev_attr_chipregs.attr,
+   &dev_attr_blink.attr,
+   &dev_attr_span.attr,
+   &dev_attr_type.attr,
+   &dev_attr_hwid.attr,
+   &dev_attr_offhook.attr,
+   &dev_attr_timing_priority.attr,
+   &dev_attr_refcount_xpd.attr,
+   NULL,
+};
+ATTRIBUTE_GROUPS(xpd_dev);
+#endif
 
 static struct bus_type xpd_type = {
 	.name = "xpds",
 	.match = xpd_match,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 13, 0)
 	.dev_attrs = xpd_dev_attrs,
+#else
+	.dev_groups = xpd_dev_groups,
+#endif
 };
 
 int xpd_driver_register(struct device_driver *driver)
@@ -974,7 +1066,7 @@ void xbus_sysfs_remove(xbus_t *xbus)
 		return;
 	}
 	XBUS_DBG(DEVICES, xbus, "going to unregister: refcount=%d\n",
-		atomic_read(&astribank->kobj.kref.refcount));
+		refcount_read(&astribank->kobj.kref.refcount));
 	BUG_ON(dev_get_drvdata(astribank) != xbus);
 	device_unregister(astribank);
 	dev_set_drvdata(astribank, NULL);

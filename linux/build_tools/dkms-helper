@@ -32,7 +32,7 @@ usage() {
 }
 
 generate_configuration() {
-    echo 'PACKAGE_NAME="dahdi-linux"'
+    echo 'PACKAGE_NAME="asl-dahdi-linux"'
     echo "PACKAGE_VERSION=\"$(build_tools/make_version .)\""
     echo 'MAKE="make KSRC=/lib/modules/${kernelver}/build"'
     echo 'CLEAN="make clean"'

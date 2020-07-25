@@ -40,10 +40,15 @@
 #include <linux/workqueue.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
+
 #include <linux/slab.h>
 
 #include <stdbool.h>
 #include <dahdi/kernel.h>
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
+#include <linux/sched/signal.h>
+#endif /* 4.11.0 */
 
 #include "wct4xxp/wct4xxp.h"	/* For certain definitions */
 
@@ -2759,12 +2764,17 @@ static void vpm_check_func(struct work_struct *work)
 	wc->not_ready--;
 	return;
 }
-
+#ifndef init_timer
+static void te12xp_timer(struct timer_list *t)
+{
+       unsigned long flags;
+       struct t1 *wc = from_timer(wc, t, timer);
+#else  /* Compatibility for pre 4.15 interface */
 static void te12xp_timer(unsigned long data)
 {
 	unsigned long flags;
 	struct t1 *wc = (struct t1 *)data;
-
+#endif
 	if (unlikely(!test_bit(INITIALIZED, &wc->bit_flags)))
 		return;
 
@@ -2938,7 +2948,8 @@ static int __devinit te12xp_init_one(struct pci_dev *pdev, const struct pci_devi
 	spin_lock_init(&wc->reglock);
 	INIT_LIST_HEAD(&wc->active_cmds);
 	INIT_LIST_HEAD(&wc->pending_cmds);
-	setup_timer(&wc->timer, te12xp_timer, (unsigned long)wc);
+	/*timer_setup(&wc->timer, te12xp_timer, (unsigned long)wc);*/
+	timer_setup(&wc->timer, te12xp_timer, 0);
 
 #	if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
 	INIT_WORK(&wc->timer_work, timer_work_func, wc);

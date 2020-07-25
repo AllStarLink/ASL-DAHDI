@@ -352,10 +352,15 @@ static void xpp_set_syncer(xbus_t *xbus, bool on)
 			 (on) ? "ON" : "OFF",
 			 (syncer) ? syncer->busname : "NO-SYNC");
 }
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
+static void xbus_command_timer(struct timer_list *param)
+{
+	xbus_t *xbus = from_timer(xbus, param, command_timer);
+#else
 static void xbus_command_timer(unsigned long param)
 {
 	xbus_t *xbus = (xbus_t *)param;
+#endif
 	struct timeval now;
 
 	BUG_ON(!xbus);
@@ -372,7 +377,9 @@ void xbus_set_command_timer(xbus_t *xbus, bool on)
 		if (!timer_pending(&xbus->command_timer)) {
 			XBUS_DBG(SYNC, xbus, "add_timer\n");
 			xbus->command_timer.function = xbus_command_timer;
+			#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
 			xbus->command_timer.data = (unsigned long)xbus;
+			#endif
 			xbus->command_timer.expires = jiffies + 1;
 			add_timer(&xbus->command_timer);
 		}

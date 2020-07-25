@@ -162,7 +162,6 @@ static int bri_chanconfig(struct file *file, struct dahdi_chan *chan,
 static int bri_startup(struct file *file, struct dahdi_span *span);
 static int bri_shutdown(struct dahdi_span *span);
 
-#define	PROC_REGISTER_FNAME	"slics"
 #define	PROC_BRI_INFO_FNAME	"bri_info"
 
 enum led_state {
@@ -468,8 +467,8 @@ static int rx_dchan(xpd_t *xpd, reg_cmd_t *regcmd)
 	int ret = 0;
 
 	src = REG_XDATA(regcmd);
-	len = regcmd->bytes;
-	eoframe = regcmd->eoframe;
+	len = regcmd->h.bytes;
+	eoframe = regcmd->h.eoframe;
 	if (len <= 0)
 		return 0;
 	if (!SPAN_REGISTERED(xpd))	/* Nowhere to copy data */
@@ -565,12 +564,12 @@ static void fill_multibyte(xpd_t *xpd, xpacket_t *pack,
 	char *p;
 
 	XPACKET_INIT(pack, GLOBAL, REGISTER_REQUEST, xpd->xbus_idx, 0, 0);
-	XPACKET_LEN(pack) = RPACKET_SIZE(GLOBAL, REGISTER_REQUEST);
+	XPACKET_LEN(pack) = XFRAME_CMD_LEN(REG);
 	reg_cmd = &RPACKET_FIELD(pack, GLOBAL, REGISTER_REQUEST, reg_cmd);
-	reg_cmd->bytes = len;
-	reg_cmd->is_multibyte = 1;
-	reg_cmd->portnum = xpd->addr.subunit;
-	reg_cmd->eoframe = eoframe;
+	reg_cmd->h.bytes = len;
+	reg_cmd->h.is_multibyte = 1;
+	reg_cmd->h.portnum = xpd->addr.subunit;
+	reg_cmd->h.eoframe = eoframe;
 	p = REG_XDATA(reg_cmd);
 	memcpy(p, buf, len);
 	if (debug)
@@ -611,7 +610,7 @@ static int tx_dchan(xpd_t *xpd)
 		return -ENOMEM;
 	}
 	for (packet_count = 0, eoframe = 0; !eoframe; packet_count++) {
-		int packet_len = RPACKET_SIZE(GLOBAL, REGISTER_REQUEST);
+		int packet_len = XFRAME_CMD_LEN(REG);
 		char buf[MULTIBYTE_MAX_LEN];
 		int len = MULTIBYTE_MAX_LEN;
 
@@ -687,20 +686,29 @@ static int bri_proc_create(xbus_t *xbus, xpd_t *xpd)
 }
 
 static xpd_t *BRI_card_new(xbus_t *xbus, int unit, int subunit,
-			   const xproto_table_t *proto_table, __u8 subtype,
-			   int subunits, int subunit_ports, bool to_phone)
+			   const xproto_table_t *proto_table,
+			   const struct unit_descriptor *unit_descriptor,
+			   bool to_phone)
 {
 	xpd_t *xpd = NULL;
 	int channels = min(3, CHANNELS_PERXPD);
 
-	if (subunit_ports != 1) {
-		XBUS_ERR(xbus, "Bad subunit_ports=%d\n", subunit_ports);
+	if ((unit_descriptor->ports_per_chip < 1) ||
+			(unit_descriptor->ports_per_chip > 4)) {
+		XBUS_ERR(xbus, "Bad ports_per_chip=%d\n",
+				unit_descriptor->ports_per_chip);
+		return NULL;
+	}
+	if ((unit_descriptor->numchips) < 1 ||
+			(unit_descriptor->numchips > 2)) {
+		XBUS_ERR(xbus, "Bad numchips=%d\n",
+				unit_descriptor->numchips);
 		return NULL;
 	}
 	XBUS_DBG(GENERAL, xbus, "\n");
 	xpd =
-	    xpd_alloc(xbus, unit, subunit, subtype, subunits,
-		      sizeof(struct BRI_priv_data), proto_table, channels);
+	    xpd_alloc(xbus, unit, subunit,
+		      sizeof(struct BRI_priv_data), proto_table, unit_descriptor, channels);
 	if (!xpd)
 		return NULL;
 	PHONEDEV(xpd).direction = (to_phone) ? TO_PHONE : TO_PSTN;
@@ -977,7 +985,8 @@ static int BRI_card_tick(xbus_t *xbus, xpd_t *xpd)
 			0,		/* data_low     */
 			0,		/* do_datah     */
 			0,		/* data_high    */
-			0		/* should_reply */
+			0,		/* should_reply */
+			0		/* do_expander  */
 		    );
 
 		if (IS_NT(xpd) && nt_keepalive
@@ -1426,7 +1435,8 @@ static int write_state_register(xpd_t *xpd, __u8 value)
 		value,		/* data_low     */
 		0,		/* do_datah     */
 		0,		/* data_high    */
-		0		/* should_reply */
+		0,		/* should_reply */
+		0		/* do_expander */
 	    );
 	return ret;
 }
@@ -1538,7 +1548,7 @@ static int BRI_card_register_reply(xbus_t *xbus, xpd_t *xpd, reg_cmd_t *info)
 	/* Map UNIT + PORTNUM to XPD */
 	orig_xpd = xpd;
 	addr.unit = orig_xpd->addr.unit;
-	addr.subunit = info->portnum;
+	addr.subunit = info->h.portnum;
 	xpd = xpd_byaddr(xbus, addr.unit, addr.subunit);
 	if (!xpd) {
 		static int rate_limit;
@@ -1563,9 +1573,9 @@ static int BRI_card_register_reply(xbus_t *xbus, xpd_t *xpd, reg_cmd_t *info)
 			XPD_DBG(REGS, xpd, "Got SU_RD_STA=%02X\n",
 				REG_FIELD(info, data_low));
 	}
-	if (info->is_multibyte) {
+	if (info->h.is_multibyte) {
 		XPD_DBG(REGS, xpd, "Got Multibyte: %d bytes, eoframe: %d\n",
-			info->bytes, info->eoframe);
+			info->h.bytes, info->h.eoframe);
 		ret = rx_dchan(xpd, info);
 		if (ret < 0) {
 			priv->dchan_rx_drops++;
@@ -1745,9 +1755,9 @@ static int bri_xpd_probe(struct device *dev)
 
 	xpd = dev_to_xpd(dev);
 	/* Is it our device? */
-	if (xpd->type != XPD_TYPE_BRI) {
+	if (xpd->xpd_type != XPD_TYPE_BRI) {
 		XPD_ERR(xpd, "drop suggestion for %s (%d)\n", dev_name(dev),
-			xpd->type);
+			xpd->xpd_type);
 		return -EINVAL;
 	}
 	XPD_DBG(DEVICES, xpd, "SYSFS\n");
@@ -1764,7 +1774,7 @@ static int bri_xpd_remove(struct device *dev)
 }
 
 static struct xpd_driver bri_driver = {
-	.type = XPD_TYPE_BRI,
+	.xpd_type = XPD_TYPE_BRI,
 	.driver = {
 		   .name = "bri",
 		   .owner = THIS_MODULE,
@@ -1778,7 +1788,6 @@ static int __init card_bri_startup(void)
 
 	if ((ret = xpd_driver_register(&bri_driver.driver)) < 0)
 		return ret;
-	INFO("revision %s\n", XPP_VERSION);
 	xproto_register(&PROTO_TABLE(BRI));
 	return 0;
 }
@@ -1793,7 +1802,6 @@ static void __exit card_bri_cleanup(void)
 MODULE_DESCRIPTION("XPP BRI Card Driver");
 MODULE_AUTHOR("Oron Peled <oron@actcom.co.il>");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(XPP_VERSION);
 MODULE_ALIAS_XPD(XPD_TYPE_BRI);
 
 module_init(card_bri_startup);

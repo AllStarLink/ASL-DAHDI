@@ -56,12 +56,12 @@ static int send_magic_request(xbus_t *xbus, unsigned unit, xportno_t portno,
 	 *   eoftx==1: Start sending us D-channel packets.
 	 *   eoftx==0: Stop sending us D-channel packets.
 	 */
-	XFRAME_NEW_CMD(xframe, pack, xbus, GLOBAL, REGISTER_REQUEST, unit);
+	XFRAME_NEW_REG_CMD(xframe, pack, xbus, GLOBAL, REG, unit);
 	reg_cmd = &RPACKET_FIELD(pack, GLOBAL, REGISTER_REQUEST, reg_cmd);
-	reg_cmd->bytes = 0;
-	reg_cmd->is_multibyte = 1;
-	reg_cmd->portnum = portno;
-	reg_cmd->eoframe = eoftx;
+	reg_cmd->h.bytes = 0;
+	reg_cmd->h.is_multibyte = 1;
+	reg_cmd->h.portnum = portno;
+	reg_cmd->h.eoframe = eoftx;
 	PORT_DBG(REGS, xbus, unit, portno, "Magic Packet (eoftx=%d)\n", eoftx);
 	if (debug & DBG_REGS)
 		dump_xframe(__func__, xbus, xframe, debug);
@@ -90,13 +90,14 @@ static int execute_chip_command(xpd_t *xpd, const int argc, char *argv[])
 	int portno;
 	bool writing;
 	int op;			/* [W]rite, [R]ead */
-	int addr_mode;		/* [D]irect, [I]ndirect, [Mm]ulti */
+	int addr_mode;		/* [D]irect, [I]ndirect, [Mm]ulti, [R]AM */
 	bool do_subreg = 0;
 	int regnum;
 	int subreg;
 	int data_low;
 	bool do_datah;
 	int data_high;
+	bool do_expander = 0;
 	int ret = -EBADR;
 
 	num_args = 2;		/* port + operation */
@@ -158,6 +159,12 @@ static int execute_chip_command(xpd_t *xpd, const int argc, char *argv[])
 		num_args++;	/* register */
 		//XPD_DBG(REGS, xpd, "DIRECT\n");
 		break;
+	case 'X':
+		do_subreg = 0;
+		do_expander = 1;
+		num_args++;	/* register */
+		//XPD_DBG(REGS, xpd, "EXPANDER\n");
+		break;
 	case 'M':
 	case 'm':
 		if (op != 'W') {
@@ -168,6 +175,16 @@ static int execute_chip_command(xpd_t *xpd, const int argc, char *argv[])
 		}
 		num_args--;	/* No data low */
 		//XPD_DBG(REGS, xpd, "Multibyte (%c)\n", addr_mode);
+		break;
+	case 'R':
+		switch (op) {
+		case 'W':
+			num_args += 5;	/* add: addr_high, data_[0-3] */
+			break;
+		case 'R':
+			num_args += 2;	/* add: addr_low, addr_high */
+			break;
+		}
 		break;
 	default:
 		XPD_ERR(xpd, "Unknown addressing type '%c'\n", addr_mode);
@@ -195,6 +212,32 @@ static int execute_chip_command(xpd_t *xpd, const int argc, char *argv[])
 		ret =
 		    send_magic_request(xpd->xbus, xpd->addr.unit, portno,
 				       addr_mode == 'm');
+		goto out;
+	}
+	if (addr_mode == 'R') {
+		__u8 input[6];
+		int i;
+
+		if (num_args - 2 > 6) {
+			XPD_ERR(xpd, "Too many args (%d) -- should be less than 6\n", num_args - 2);
+			goto out;
+		}
+		for (i = 0; i < num_args - 2; i++, argno++) {
+			int hexbyte= parse_hexbyte(argv[argno]);
+			if (hexbyte < 0) {
+				XPD_ERR(xpd, "Illegal input[%d] number '%s'\n", i, argv[argno]);
+				goto out;
+			}
+			input[i] = hexbyte;
+		}
+		ret = xpp_ram_request(xpd->xbus, xpd, portno, writing,
+			input[0],
+			input[1],
+			input[2],
+			input[3],
+			input[4],
+			input[5],
+			1);
 		goto out;
 	}
 	/* Normal (non-Magic) register commands */
@@ -264,17 +307,17 @@ static int execute_chip_command(xpd_t *xpd, const int argc, char *argv[])
 #if 0
 	XPD_DBG(REGS, xpd,
 		"portno=%d writing=%d regnum=%d do_subreg=%d subreg=%d "
-		"dataL=%d do_datah=%d dataH=%d\n",
+		"dataL=%d do_datah=%d dataH=%d do_expander=%d\n",
 		portno,			/* portno       */
 		writing,		/* writing      */
 		regnum, do_subreg,	/* use subreg   */
 		subreg,			/* subreg       */
 		data_low, do_datah,	/* use data_high */
-		data_high);
+		data_high, do_expander);
 #endif
 	ret = xpp_register_request(xpd->xbus, xpd, portno,
 		writing, regnum, do_subreg, subreg,
-		data_low, do_datah, data_high, 1);
+		data_low, do_datah, data_high, 1, do_expander);
 out:
 	return ret;
 }
@@ -362,7 +405,7 @@ static void global_packet_dump(const char *msg, xpacket_t *pack);
 int xpp_register_request(xbus_t *xbus, xpd_t *xpd, xportno_t portno,
 			 bool writing, __u8 regnum, bool do_subreg, __u8 subreg,
 			 __u8 data_low, bool do_datah, __u8 data_high,
-			 bool should_reply)
+			 bool should_reply, bool do_expander)
 {
 	int ret = 0;
 	xframe_t *xframe;
@@ -373,23 +416,22 @@ int xpp_register_request(xbus_t *xbus, xpd_t *xpd, xportno_t portno,
 		DBG(REGS, "NO XBUS\n");
 		return -EINVAL;
 	}
-	XFRAME_NEW_CMD(xframe, pack, xbus, GLOBAL, REGISTER_REQUEST,
-		       xpd->xbus_idx);
+	XFRAME_NEW_REG_CMD(xframe, pack, xbus, GLOBAL, REG, xpd->xbus_idx);
 	LINE_DBG(REGS, xpd, portno, "%c%c %02X %02X %02X %02X\n",
 		 (writing) ? 'W' : 'R', (do_subreg) ? 'S' : 'D', regnum, subreg,
 		 data_low, data_high);
 	reg_cmd = &RPACKET_FIELD(pack, GLOBAL, REGISTER_REQUEST, reg_cmd);
 	/* do not count the 'bytes' field */
-	reg_cmd->bytes = sizeof(*reg_cmd) - 1;
-	reg_cmd->is_multibyte = 0;
+	reg_cmd->h.bytes = REG_CMD_SIZE(REG);
+	reg_cmd->h.is_multibyte = 0;
 	if (portno == PORT_BROADCAST) {
-		reg_cmd->portnum = 0;
+		reg_cmd->h.portnum = 0;
 		REG_FIELD(reg_cmd, all_ports_broadcast) = 1;
 	} else {
-		reg_cmd->portnum = portno;
+		reg_cmd->h.portnum = portno;
 		REG_FIELD(reg_cmd, all_ports_broadcast) = 0;
 	}
-	reg_cmd->eoframe = 0;
+	reg_cmd->h.eoframe = 0;
 	REG_FIELD(reg_cmd, reserved) = 0;	/* force reserved bits to 0 */
 	REG_FIELD(reg_cmd, read_request) = (writing) ? 0 : 1;
 	REG_FIELD(reg_cmd, do_subreg) = do_subreg;
@@ -398,11 +440,12 @@ int xpp_register_request(xbus_t *xbus, xpd_t *xpd, xportno_t portno,
 	REG_FIELD(reg_cmd, do_datah) = do_datah;
 	REG_FIELD(reg_cmd, data_low) = data_low;
 	REG_FIELD(reg_cmd, data_high) = data_high;
+	REG_FIELD(reg_cmd, do_expander) = do_expander;
 	if (should_reply)
 		xpd->requested_reply = *reg_cmd;
 	if (debug & DBG_REGS) {
 		dump_reg_cmd("REG_REQ", 1, xbus, xpd->addr.unit,
-			     reg_cmd->portnum, reg_cmd);
+			     reg_cmd->h.portnum, reg_cmd);
 		dump_packet("REG_REQ", pack, 1);
 	}
 	if (!xframe->usec_towait) {	/* default processing time of SPI */
@@ -415,6 +458,67 @@ int xpp_register_request(xbus_t *xbus, xpd_t *xpd, xportno_t portno,
 	return ret;
 }
 EXPORT_SYMBOL(xpp_register_request);
+
+int xpp_ram_request(xbus_t *xbus, xpd_t *xpd, xportno_t portno,
+			 bool writing,
+			__u8 addr_low,
+			__u8 addr_high,
+			__u8 data_0,
+			__u8 data_1,
+			__u8 data_2,
+			__u8 data_3,
+			 bool should_reply)
+{
+	int ret = 0;
+	xframe_t *xframe;
+	xpacket_t *pack;
+	reg_cmd_t *reg_cmd;
+
+	if (!xbus) {
+		DBG(REGS, "NO XBUS\n");
+		return -EINVAL;
+	}
+	XFRAME_NEW_REG_CMD(xframe, pack, xbus, GLOBAL, RAM, xpd->xbus_idx);
+	LINE_DBG(REGS, xpd, portno, "%cR %02X %02X %02X %02X %02X %02X\n",
+		(writing) ? 'W' : 'R',
+		addr_low, addr_high,
+		data_0, data_1, data_2, data_3);
+	reg_cmd = &RPACKET_FIELD(pack, GLOBAL, REGISTER_REQUEST, reg_cmd);
+	/* do not count the 'bytes' field */
+	reg_cmd->h.bytes = REG_CMD_SIZE(RAM);
+	reg_cmd->h.is_multibyte = 0;
+	if (portno == PORT_BROADCAST) {
+		reg_cmd->h.portnum = 0;
+		REG_FIELD_RAM(reg_cmd, all_ports_broadcast) = 1;
+	} else {
+		reg_cmd->h.portnum = portno;
+		REG_FIELD_RAM(reg_cmd, all_ports_broadcast) = 0;
+	}
+	reg_cmd->h.eoframe = 0;
+	REG_FIELD_RAM(reg_cmd, reserved) = 0;	/* force reserved bits to 0 */
+	REG_FIELD_RAM(reg_cmd, read_request) = (writing) ? 0 : 1;
+	REG_FIELD_RAM(reg_cmd, do_datah) = 1;
+	REG_FIELD_RAM(reg_cmd, do_subreg) = 1;
+	REG_FIELD_RAM(reg_cmd, addr_low) = addr_low;
+	REG_FIELD_RAM(reg_cmd, addr_high) = addr_high;
+	REG_FIELD_RAM(reg_cmd, data_0) = data_0;
+	REG_FIELD_RAM(reg_cmd, data_1) = data_1;
+	REG_FIELD_RAM(reg_cmd, data_2) = data_2;
+	REG_FIELD_RAM(reg_cmd, data_3) = data_3;
+	if (should_reply)
+		xpd->requested_reply = *reg_cmd;
+	if (debug & DBG_REGS) {
+		dump_reg_cmd("REG_RAM", 1, xbus, xpd->addr.unit,
+			     reg_cmd->h.portnum, reg_cmd);
+		dump_packet("REG_RAM", pack, 1);
+	}
+	if (!xframe->usec_towait) {	/* default processing time of SPI */
+		xframe->usec_towait = 1000;
+	}
+	ret = send_cmd_frame(xbus, xframe);
+	return ret;
+}
+EXPORT_SYMBOL(xpp_ram_request);
 
 /*
  * The XPD parameter is totaly ignored by the driver and firmware as well.
@@ -545,21 +649,14 @@ HANDLER_DEF(GLOBAL, AB_DESCRIPTION)
 		}
 		card_desc->magic = CARD_DESC_MAGIC;
 		INIT_LIST_HEAD(&card_desc->card_list);
-		card_desc->type = this_unit->type;
-		card_desc->subtype = this_unit->subtype;
-		card_desc->xpd_addr = this_unit->addr;
-		card_desc->numchips = this_unit->numchips;
-		card_desc->ports_per_chip = this_unit->ports_per_chip;
-		card_desc->port_dir = this_unit->port_dir;
-		card_desc->ports =
-		    card_desc->numchips * card_desc->ports_per_chip;
+		card_desc->unit_descriptor = *this_unit;
 		XBUS_INFO(xbus,
-			"    CARD %d type=%d.%d ports=%d (%dx%d), "
+			"    CARD %d type=%d.%d ports=(%dx%d), "
 			"port-dir=0x%02X\n",
-			card_desc->xpd_addr.unit, card_desc->type,
-			card_desc->subtype, card_desc->ports,
-			card_desc->numchips, card_desc->ports_per_chip,
-			card_desc->port_dir);
+			this_unit->addr.unit, this_unit->type,
+			this_unit->subtype,
+			this_unit->numchips, this_unit->ports_per_chip,
+			this_unit->port_dir);
 		spin_lock_irqsave(&worker->worker_lock, flags);
 		worker->num_units++;
 		XBUS_COUNTER(xbus, UNITS)++;
@@ -591,7 +688,7 @@ HANDLER_DEF(GLOBAL, REGISTER_REPLY)
 		return -EPROTO;
 	}
 	if (debug & DBG_REGS) {
-		dump_reg_cmd("REG_REPLY", 0, xbus, xpd->addr.unit, reg->portnum,
+		dump_reg_cmd("REG_REPLY", 0, xbus, xpd->addr.unit, reg->h.portnum,
 			     reg);
 		dump_packet("REG_REPLY", pack, 1);
 	}
@@ -706,6 +803,7 @@ int run_initialize_registers(xpd_t *xpd)
 	char xbuslabel[MAX_ENV_STR];
 	char init_card[MAX_PATH_STR];
 	__u8 direction_mask;
+	__u8 hw_type = XPD_HW(xpd).type;
 	int i;
 	char *argv[] = {
 		init_card,
@@ -752,8 +850,9 @@ int run_initialize_registers(xpd_t *xpd)
 	snprintf(busnumstr, MAX_ENV_STR, "XBUS_NUMBER=%d", xbus->num);
 	snprintf(modelstr, MAX_ENV_STR, "XBUS_MODEL_STRING=%s",
 		 xbus->transport.model_string);
+	snprintf(typestr, MAX_ENV_STR, "HW_TYPE=%d", hw_type);
 	snprintf(unitstr, MAX_ENV_STR, "UNIT_NUMBER=%d", xpd->addr.unit);
-	snprintf(typestr, MAX_ENV_STR, "UNIT_TYPE=%d", xpd->type);
+	snprintf(typestr, MAX_ENV_STR, "UNIT_TYPE=%d", xpd->xpd_type);
 	snprintf(subunitsstr, MAX_ENV_STR, "UNIT_SUBUNITS=%d", xpd->subunits);
 	snprintf(directionstr, MAX_ENV_STR, "UNIT_SUBUNITS_DIR=%d",
 		 direction_mask);
@@ -762,7 +861,7 @@ int run_initialize_registers(xpd_t *xpd)
 		 xbus->connector);
 	snprintf(xbuslabel, MAX_ENV_STR, "XBUS_LABEL=%s", xbus->label);
 	if (snprintf
-	    (init_card, MAX_PATH_STR, "%s/init_card_%d_%d", initdir, xpd->type,
+	    (init_card, MAX_PATH_STR, "%s/init_card_%d_%d", initdir, hw_type,
 	     xbus->revision) > MAX_PATH_STR) {
 		XPD_NOTICE(xpd,
 			"Cannot initialize. pathname is longer "
@@ -779,7 +878,7 @@ int run_initialize_registers(xpd_t *xpd)
 		goto err;
 	}
 	XPD_DBG(DEVICES, xpd, "running '%s' for type=%d revision=%d\n",
-		init_card, xpd->type, xbus->revision);
+		init_card, xpd->xpd_type, xbus->revision);
 	ret = call_usermodehelper(init_card, argv, envp, UMH_WAIT_PROC);
 	/*
 	 * Carefully report results
