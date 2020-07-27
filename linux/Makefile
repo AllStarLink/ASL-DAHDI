@@ -7,7 +7,7 @@
 
 PWD:=$(shell pwd)
 
-DAHDI_MODULES_EXTRA:=$(MODULES_EXTRA:%=%.o) $(SUBDIRS_EXTRA:%=%/) dahdi_dummy.o
+DAHDI_MODULES_EXTRA:=$(MODULES_EXTRA:%=%.o) $(SUBDIRS_EXTRA:%=%/)
 
 # If you want to build for a kernel other than the current kernel, set KVERS
 ifndef KVERS
