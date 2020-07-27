@@ -200,7 +200,7 @@ struct xusb {
 	int counters[XUSB_COUNTER_MAX];
 
 	/* metrics */
-	struct timeval last_tx;
+	ktime_t last_tx;
 	unsigned int max_tx_delay;
 	uint usb_tx_delay[NUM_BUCKETS];
 	uint sluggish_debounce;
@@ -222,25 +222,18 @@ static unsigned bus_count;
 /* prevent races between open() and disconnect() */
 static DEFINE_MUTEX(protect_xusb_devices);
 
-/*
- * AsteriskNow kernel has backported the "lean" callback from 2.6.20
- * to 2.6.19 without any macro to notify of this fact -- how lovely.
- * Debian-Etch and Centos5 are using 2.6.18 for now (lucky for us).
- * Fedora6 jumped from 2.6.18 to 2.6.20. So far luck is on our side ;-)
- */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19)
-#define	USB_PASS_CB(u)	struct urb *u, struct pt_regs *regs
-#else
-#define	USB_PASS_CB(u)	struct urb *u
-#endif
-
-static void xpp_send_callback(USB_PASS_CB(urb));
-static void xpp_receive_callback(USB_PASS_CB(urb));
+static void xpp_send_callback(struct urb *urb);
+static void xpp_receive_callback(struct urb *urb);
 static int xusb_probe(struct usb_interface *interface,
 		      const struct usb_device_id *id);
 static void xusb_disconnect(struct usb_interface *interface);
-#ifdef	CONFIG_PROC_FS
+
+#ifdef CONFIG_PROC_FS
+#ifdef DAHDI_HAVE_PROC_OPS
+static const struct proc_ops xusb_read_proc_ops;
+#else
 static const struct file_operations xusb_read_proc_ops;
+#endif
 #endif
 
 /*------------------------------------------------------------------*/
@@ -377,7 +370,7 @@ static int do_send_xframe(xbus_t *xbus, xframe_t *xframe)
 	BUG_ON(!urb);
 	/* update urb length */
 	urb->transfer_buffer_length = XFRAME_LEN(xframe);
-	do_gettimeofday(&xframe->tv_submitted);
+	xframe->kt_submitted = ktime_get();
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
 	if (ret < 0) {
 		static int rate_limit;
@@ -869,14 +862,14 @@ static void xusb_disconnect(struct usb_interface *interface)
 	mutex_unlock(&protect_xusb_devices);
 }
 
-static void xpp_send_callback(USB_PASS_CB(urb))
+static void xpp_send_callback(struct urb *urb)
 {
 	struct uframe *uframe = urb_to_uframe(urb);
 	xframe_t *xframe = &uframe->xframe;
 	xusb_t *xusb = uframe->xusb;
 	xbus_t *xbus = xbus_num(xusb->xbus_num);
-	struct timeval now;
-	long usec;
+	ktime_t now;
+	s64 usec;
 	int writes = atomic_read(&xusb->pending_writes);
 	int i;
 
@@ -887,9 +880,9 @@ static void xpp_send_callback(USB_PASS_CB(urb))
 	}
 	//flip_parport_bit(6);
 	atomic_dec(&xusb->pending_writes);
-	do_gettimeofday(&now);
-	xusb->last_tx = xframe->tv_submitted;
-	usec = usec_diff(&now, &xframe->tv_submitted);
+	now = ktime_get();
+	xusb->last_tx = xframe->kt_submitted;
+	usec = ktime_us_delta(now, xframe->kt_submitted);
 	if (usec < 0)
 		usec = 0; /* System clock jumped */
 	if (usec > xusb->max_tx_delay)
@@ -935,7 +928,7 @@ static void xpp_send_callback(USB_PASS_CB(urb))
 		XUSB_ERR(xusb, "A urb from non-connected device?\n");
 }
 
-static void xpp_receive_callback(USB_PASS_CB(urb))
+static void xpp_receive_callback(struct urb *urb)
 {
 	struct uframe *uframe = urb_to_uframe(urb);
 	xframe_t *xframe = &uframe->xframe;
@@ -943,9 +936,8 @@ static void xpp_receive_callback(USB_PASS_CB(urb))
 	xbus_t *xbus = xbus_num(xusb->xbus_num);
 	size_t size;
 	bool do_resubmit = 1;
-	struct timeval now;
+	ktime_t now = ktime_get();
 
-	do_gettimeofday(&now);
 	atomic_dec(&xusb->pending_reads);
 	if (!xbus) {
 		XUSB_ERR(xusb,
@@ -973,7 +965,7 @@ static void xpp_receive_callback(USB_PASS_CB(urb))
 		goto err;
 	}
 	atomic_set(&xframe->frame_len, size);
-	xframe->tv_received = now;
+	xframe->kt_received = now;
 
 //      if (debug)
 //              dump_xframe("USB_FRAME_RECEIVE", xbus, xframe, debug);
@@ -1026,15 +1018,7 @@ static int __init xpp_usb_init(void)
 
 	xusb_cache =
 	    kmem_cache_create("xusb_cache", sizeof(xframe_t) + XFRAME_DATASIZE,
-#if (LINUX_VERSION_CODE == KERNEL_VERSION(2, 6, 22)) && defined(CONFIG_SLUB)
-			      0, SLAB_STORE_USER,
-#else
-			      0, 0,
-#endif
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 23)
-			      NULL,
-#endif
-			      NULL);
+			      0, 0, NULL);
 	if (!xusb_cache) {
 		ret = -ENOMEM;
 		goto failure;
@@ -1129,13 +1113,22 @@ static int xusb_read_proc_open(struct inode *inode, struct file *file)
 	return single_open(file, xusb_read_proc_show, PDE_DATA(inode));
 }
 
-static const struct file_operations xusb_read_proc_ops = {
-	.owner		= THIS_MODULE,
-	.open		= xusb_read_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+#ifdef DAHDI_HAVE_PROC_OPS
+static const struct proc_ops xusb_read_proc_ops = {
+	.proc_open		= xusb_read_proc_open,
+	.proc_read		= seq_read,
+	.proc_lseek		= seq_lseek,
+	.proc_release		= single_release,
 };
+#else
+static const struct file_operations xusb_read_proc_ops = {
+	.owner			= THIS_MODULE,
+	.open			= xusb_read_proc_open,
+	.read			= seq_read,
+	.llseek			= seq_lseek,
+	.release		= single_release,
+};
+#endif
 
 
 #endif

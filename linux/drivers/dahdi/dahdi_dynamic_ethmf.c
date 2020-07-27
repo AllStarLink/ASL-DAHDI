@@ -236,11 +236,7 @@ static int ztdethmf_rcv(struct sk_buff *skb, struct net_device *dev,
 	unsigned int samples, channels, rbslen, flags;
 	unsigned int skip = 0;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 22)
 	zh = (struct ztdeth_header *) skb_network_header(skb);
-#else
-	zh = (struct ztdeth_header *) skb->nh.raw;
-#endif
 	if (ntohs(zh->subaddr) & 0x8000) {
 		/* got a multi-span frame */
 		num_spans = ntohs(zh->subaddr) & 0xFF;
@@ -484,19 +480,9 @@ static void ztdethmf_transmit(struct dahdi_dynamic *dyn, u8 *msg, size_t msglen)
 
 		/* Setup protocol type */
 		skb->protocol = __constant_htons(ETH_P_ZTDETH);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 22)
 		skb_set_network_header(skb, 0);
-#else
-		skb->nh.raw = skb->data;
-#endif
 		skb->dev = dev;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 24)
 		dev_hard_header(skb, dev, ETH_P_ZTDETH, addr, dev->dev_addr, skb->len);
-#else
-		if (dev->hard_header)
-			dev->hard_header(skb, dev, ETH_P_ZTDETH, addr,
-					dev->dev_addr, skb->len);
-#endif
 		/* queue frame for delivery */
 		if (dev) {
 			skb_queue_tail(&skbs, skb);
@@ -603,11 +589,7 @@ static int ztdethmf_create(struct dahdi_dynamic *dyn, const char *addr)
 		kfree(z);
 		return -EINVAL;
 	}
-	z->dev = dev_get_by_name(
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 24)
-		&init_net,
-#endif
-		z->ethdev);
+	z->dev = dev_get_by_name(&init_net, z->ethdev);
 	if (!z->dev) {
 		printk(KERN_ERR "TDMoE Multiframe: Invalid device '%s'\n", z->ethdev);
 		kfree(z);
@@ -681,23 +663,13 @@ static int ethmf_delay_dec(void)
  * Timer callback function to allow all spans to be added, prior to any of
  * them being used.
  */
-/*static void timer_callback(unsigned long param)*/
-static void timer_callback(
-#ifdef init_timer      /* Compatibility for pre 4.15 interface */
-               unsigned long ignored
-#else
-               struct timer_list *ignored
-#endif
-)
+static void timer_callback(TIMER_DATA_TYPE unused)
 {
 	if (ethmf_delay_dec()) {
-		if (!atomic_read(&timer_deleted)) {
-			timer.expires = jiffies + HZ;
-			add_timer(&timer);
-		}
+		if (!atomic_read(&timer_deleted))
+			mod_timer(&timer, jiffies + HZ);
 	} else {
 		printk(KERN_INFO "All TDMoE multiframe span groups are active.\n");
-		del_timer(&timer);
 	}
 }
 
@@ -761,22 +733,28 @@ static int ztdethmf_proc_open(struct inode *inode, struct file *file)
 	return single_open(file, ztdethmf_proc_show, NULL);
 }
 
-static const struct file_operations ztdethmf_proc_fops = {
-	.open           = ztdethmf_proc_open,
-	.read           = seq_read,
-	.llseek         = seq_lseek,
-	.release        = seq_release,
+#ifdef DAHDI_HAVE_PROC_OPS
+static const struct proc_ops ztdethmf_proc_fops = {
+	.proc_open	= ztdethmf_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= seq_release,
 };
+#else
+static const struct file_operations ztdethmf_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= ztdethmf_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
+#endif /* DAHDI_HAVE_PROC_OPS */
 #endif
 
 static int __init ztdethmf_init(void)
 {
-	/*init_timer(&timer);*/
-	timer_setup(&timer, &timer_callback, 0);
-	timer.expires = jiffies + HZ;
-	/*timer.function = &timer_callback;*/
-	if (!timer_pending(&timer))
-		add_timer(&timer);
+	timer_setup(&timer, timer_callback, 0);
+	mod_timer(&timer, jiffies + HZ);
 
 	dev_add_pack(&ztdethmf_ptype);
 	register_netdevice_notifier(&ztdethmf_nblock);

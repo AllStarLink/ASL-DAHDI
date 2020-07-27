@@ -1,6 +1,6 @@
 /*
- * version.h
+ * version.h 
  * Automatically generated
  */
-#define DAHDI_VERSION "2.11.1"
+#define DAHDI_VERSION "3.1.0"
 

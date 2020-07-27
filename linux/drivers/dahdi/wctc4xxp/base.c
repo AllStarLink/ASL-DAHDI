@@ -239,13 +239,8 @@ initialize_cmd(struct tcb *cmd, unsigned long cmd_flags)
 	cmd->flags = cmd_flags;
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
-/*! Used to allocate commands to submit to the dte. */
-kmem_cache_t *cmd_cache;
-#else
 /*! Used to allocate commands to submit to the dte. */
 static struct kmem_cache *cmd_cache;
-#endif
 
 static inline struct tcb *
 __alloc_cmd(size_t size, gfp_t alloc_flags, unsigned long cmd_flags)
@@ -376,9 +371,7 @@ struct wcdte {
 	struct sk_buff_head captured_packets;
 	struct net_device *netdev;
 	struct net_device_stats net_stats;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 24)
 	struct napi_struct napi;
-#endif
 	struct timer_list watchdog;
 	u16 open_channels;
 	unsigned long reported_packet_errors;
@@ -501,11 +494,7 @@ wctc4xxp_net_up(struct net_device *netdev)
 {
 	struct wcdte *wc = wcdte_from_netdev(netdev);
 	DTE_DEBUG(DTE_DEBUG_GENERAL, "%s\n", __func__);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 24)
-	netif_poll_enable(netdev);
-#else
 	napi_enable(&wc->napi);
-#endif
 	return 0;
 }
 
@@ -514,11 +503,7 @@ wctc4xxp_net_down(struct net_device *netdev)
 {
 	struct wcdte *wc = wcdte_from_netdev(netdev);
 	DTE_DEBUG(DTE_DEBUG_GENERAL, "%s\n", __func__);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 24)
-	netif_poll_disable(netdev);
-#else
 	napi_disable(&wc->napi);
-#endif
 	return 0;
 }
 
@@ -558,27 +543,6 @@ wctc4xxp_net_receive(struct wcdte *wc, int max)
 	return count;
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 24)
-static int
-wctc4xxp_poll(struct net_device *netdev, int *budget)
-{
-	struct wcdte *wc = wcdte_from_netdev(netdev);
-	int count = 0;
-	int quota = min(netdev->quota, *budget);
-
-	count = wctc4xxp_net_receive(wc, quota);
-
-	*budget -=       count;
-	netdev->quota -= count;
-
-	if (!skb_queue_len(&wc->captured_packets)) {
-		netif_rx_complete(netdev);
-		return 0;
-	} else {
-		return -1;
-	}
-}
-#else
 static int
 wctc4xxp_poll(struct napi_struct *napi, int budget)
 {
@@ -598,7 +562,6 @@ wctc4xxp_poll(struct napi_struct *napi, int budget)
 	}
 	return count;
 }
-#endif
 
 static struct net_device_stats *
 wctc4xxp_net_get_stats(struct net_device *netdev)
@@ -690,12 +653,7 @@ wctc4xxp_net_register(struct wcdte *wc)
 	netdev->promiscuity = 0;
 	netdev->flags |= IFF_NOARP;
 
-#	if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 24)
-	netdev->poll = &wctc4xxp_poll;
-	netdev->weight = 64;
-#	else
 	netif_napi_add(netdev, &wc->napi, &wctc4xxp_poll, 64);
-#	endif
 
 	res = register_netdev(netdev);
 	if (res) {
@@ -765,9 +723,7 @@ wctc4xxp_net_capture_cmd(struct wcdte *wc, const struct tcb *cmd)
 		return;
 
 	skb_queue_tail(&wc->captured_packets, skb);
-#	if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 24)
-	netif_rx_schedule(netdev);
-#	elif LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29)
+#	if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29)
 	netif_rx_schedule(netdev, &wc->napi);
 #	elif LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 30)
 	netif_rx_schedule(&wc->napi);
@@ -1977,13 +1933,9 @@ wctc4xxp_operation_allocate(struct dahdi_transcoder_channel *dtc)
 	int res = 0;
 	struct wcdte *wc = ((struct channel_pvt *)(dtc->pvt))->wc;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 24)
-	mutex_lock(&wc->chanlock);
-#else
 	res = mutex_lock_killable(&wc->chanlock);
 	if (res)
 		return res;
-#endif
 
 	++wc->open_channels;
 
@@ -2056,13 +2008,9 @@ wctc4xxp_operation_release(struct dahdi_transcoder_channel *dtc)
 	BUG_ON(!cpvt);
 	BUG_ON(!wc);
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 24)
-	mutex_lock(&wc->chanlock);
-#else
 	res = mutex_lock_killable(&wc->chanlock);
 	if (res)
 		return res;
-#endif
 
 	if (test_bit(DTE_SHUTDOWN, &wc->flags)) {
 		/* On shutdown, if we reload the firmware we will reset the
@@ -2777,19 +2725,13 @@ static void service_rx_ring(struct wcdte *wc)
 	wctc4xxp_receive_demand_poll(wc);
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
-static void deferred_work_func(void *param)
-{
-	struct wcdte *wc = param;
-#else
 static void deferred_work_func(struct work_struct *work)
 {
 	struct wcdte *wc = container_of(work, struct wcdte, deferred_work);
-#endif
 	service_rx_ring(wc);
 }
 
-DAHDI_IRQ_HANDLER(wctc4xxp_interrupt)
+static irqreturn_t wctc4xxp_interrupt(int irq, void *dev_id)
 {
 	struct wcdte *wc = dev_id;
 	bool packets_to_process = false;
@@ -3707,7 +3649,7 @@ wctc4xxp_watchdog(struct timer_list *t)
 #else  /* Compatibility for pre 4.15 interface */
 wctc4xxp_watchdog(unsigned long data)
 {
-	struct wcdte *wc = (struct wcdte *)data;
+	struct wcdte *wc = from_timer(wc, timer, watchdog);
 #endif
 	struct tcb *cmd, *temp;
 	LIST_HEAD(cmds_to_retry);
@@ -3907,16 +3849,11 @@ static ssize_t wctc4xxp_force_alert_store(struct device *dev,
 	}
 
 	dev_info(&wc->pdev->dev, "Forcing alert type: 0x%x\n", alert_type);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 24)
-	mutex_lock(&wc->chanlock);
-#else
 	res = mutex_lock_killable(&wc->chanlock);
 	if (res) {
 		free_cmd(cmd);
 		return -EAGAIN;
 	}
-#endif
-
 
 	parameters[0] = alert_type;
 
@@ -4005,11 +3942,7 @@ wctc4xxp_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	INIT_LIST_HEAD(&wc->cmd_list);
 	INIT_LIST_HEAD(&wc->waiting_for_response_list);
 	INIT_LIST_HEAD(&wc->rx_list);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
-	INIT_WORK(&wc->deferred_work, deferred_work_func, wc);
-#else
 	INIT_WORK(&wc->deferred_work, deferred_work_func);
-#endif
 	init_waitqueue_head(&wc->waitq);
 
 	if (pci_set_dma_mask(wc->pdev, DMA_BIT_MASK(32))) {
@@ -4095,14 +4028,7 @@ wctc4xxp_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			goto error_exit_swinit;
 	}
 
-#	if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 18)
-	wc->watchdog.function = wctc4xxp_watchdog;
-	wc->watchdog.data = (unsigned long)wc;
-	init_timer(&wc->watchdog);
-#	else
-	/*timer_setup(&wc->watchdog, wctc4xxp_watchdog, (unsigned long)wc);*/
 	timer_setup(&wc->watchdog, wctc4xxp_watchdog, 0);
-#	endif
 
 	/* ------------------------------------------------------------------
 	 * Load the firmware and start the DTE.
@@ -4307,25 +4233,15 @@ static int __init wctc4xxp_init(void)
 	int res;
 	unsigned long cache_flags;
 
-#if defined(CONFIG_SLUB) && (LINUX_VERSION_CODE == KERNEL_VERSION(2, 6, 22))
-	cache_flags = SLAB_HWCACHE_ALIGN | SLAB_STORE_USER | SLAB_DEBUG_FREE;
-#else
 	cache_flags = SLAB_HWCACHE_ALIGN;
-#endif
 
-#	if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 23)
-	cmd_cache = kmem_cache_create(THIS_MODULE->name, sizeof(struct tcb),
-			0, cache_flags, NULL, NULL);
-#	else
 	cmd_cache = kmem_cache_create(THIS_MODULE->name, sizeof(struct tcb),
 			0, cache_flags, NULL);
-#	endif
-
 	if (!cmd_cache)
 		return -ENOMEM;
 	spin_lock_init(&wctc4xxp_list_lock);
 	INIT_LIST_HEAD(&wctc4xxp_list);
-	res = dahdi_pci_module(&wctc4xxp_driver);
+	res = pci_register_driver(&wctc4xxp_driver);
 	if (res) {
 		kmem_cache_destroy(cmd_cache);
 		return -ENODEV;

@@ -1805,7 +1805,8 @@ static int t13x_software_init(struct t13x *wc, enum linemode type)
 	t13x_serial_setup(wc);
 	set_bit(DAHDI_FLAGBIT_RBS, &wc->span.flags);
 	for (x = 0; x < wc->span.channels; x++) {
-		sprintf(wc->chans[x]->name, "%s/%d", wc->span.name, x + 1);
+		snprintf(wc->chans[x]->name, sizeof(wc->chans[x]->name),
+			 "%s/%d", wc->span.name, x + 1);
 		t13x_chan_set_sigcap(&wc->span, x);
 		wc->chans[x]->pvt = wc;
 		wc->chans[x]->chanpos = x + 1;
@@ -1871,9 +1872,10 @@ static int t13x_set_linemode(struct dahdi_span *span, enum spantypes linemode)
 		break;
 	case SPANTYPE_DIGITAL_J1:
 		dev_info(&wc->xb.pdev->dev,
-			 "Changing from %s to E1 line mode.\n",
+			 "Changing from %s to J1 line mode.\n",
 			 dahdi_spantype2str(wc->span.spantype));
 		res = t13x_software_init(wc, J1);
+		break;
 	default:
 		dev_err(&wc->xb.pdev->dev,
 			"Got invalid linemode '%s' from dahdi\n",
@@ -2271,15 +2273,9 @@ static void te13x_handle_transmit(struct wcxb *xb, void *vfp)
 #define SPAN_ALARMS \
 	(wc->span.alarms & ~DAHDI_ALARM_NOTOPEN)
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
-static void timer_work_func(void *param)
-{
-	struct t13x *wc = param;
-#else
 static void timer_work_func(struct work_struct *work)
 {
 	struct t13x *wc = container_of(work, struct t13x, timer_work);
-#endif
 	static int work_count;
 
 	if (debug)
@@ -2380,18 +2376,14 @@ static void te13x_handle_interrupt(struct wcxb *xb, u32 pending)
 		handle_falc_int(wc);
 	}
 }
-#ifndef init_timer
-static void te13xp_timer(struct timer_list *t)
+
+static void te13xp_timer(TIMER_DATA_TYPE timer)
 {
-       struct t13x *wc = from_timer(wc, t, timer);
-#else  /* Compatibility for pre 4.15 interface */
-static void te13xp_timer(unsigned long data)
-{
-	struct t13x *wc = (struct t13x *)data;
+	struct t13x *wc = from_timer(wc, timer, timer);
 
 	if (unlikely(!test_bit(INITIALIZED, &wc->bit_flags)))
 		return;
-#endif
+
 	queue_work(wc->wq, &wc->timer_work);
 	return;
 }
@@ -2586,14 +2578,9 @@ static int __devinit te13xp_init_one(struct pci_dev *pdev,
 	wc->ledstate = -1;
 	spin_lock_init(&wc->reglock);
 	mutex_init(&wc->lock);
-	/*setup_timer(&wc->timer, te13xp_timer, (unsigned long)wc);*/
 	timer_setup(&wc->timer, te13xp_timer, 0);
 
-#	if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
-	INIT_WORK(&wc->timer_work, timer_work_func, wc);
-#	else
 	INIT_WORK(&wc->timer_work, timer_work_func);
-#	endif
 
 	wc->ddev = dahdi_create_device();
 	if (!wc->ddev) {
@@ -2802,7 +2789,7 @@ static int __init te13xp_init(void)
 		return -EINVAL;
 	}
 
-	res = dahdi_pci_module(&te13xp_driver);
+	res = pci_register_driver(&te13xp_driver);
 	if (res)
 		return -ENODEV;
 

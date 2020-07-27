@@ -31,10 +31,8 @@
 #include <linux/version.h>
 #include <linux/slab.h>
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 26)
 #define HAVE_RATELIMIT
 #include <linux/ratelimit.h>
-#endif
 
 #include <dahdi/kernel.h>
 
@@ -484,7 +482,7 @@ static irqreturn_t _wcxb_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-DAHDI_IRQ_HANDLER(wcxb_isr)
+static irqreturn_t wcxb_isr(int irq, void *dev_id)
 {
 	irqreturn_t ret;
 	unsigned long flags;

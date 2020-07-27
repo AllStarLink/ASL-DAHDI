@@ -50,8 +50,15 @@ static const char rcsid[] = "$Id$";
 #ifdef	PROTOCOL_DEBUG
 #ifdef	CONFIG_PROC_FS
 #define	PROC_XBUS_COMMAND	"command"
+
+#ifdef DAHDI_HAVE_PROC_OPS
+static const struct proc_ops proc_xbus_command_ops;
+#else
 static const struct file_operations proc_xbus_command_ops;
+#endif /* DAHDI_HAVE_PROC_OPS */
+
 #endif
+
 #endif
 
 /* Command line parameters */
@@ -65,8 +72,15 @@ static DEF_PARM_BOOL(dahdi_autoreg, 0, 0444,
 		     "Register devices automatically (1) or not (0). UNUSED.");
 
 #ifdef	CONFIG_PROC_FS
+
+#ifdef DAHDI_HAVE_PROC_OPS
+static const struct proc_ops xbus_read_proc_ops;
+#else
 static const struct file_operations xbus_read_proc_ops;
-#endif
+#endif /* DAHDI_HAVE_PROC_OPS */
+
+#endif /* CONFIG_PROC_FS */
+
 static void transport_init(xbus_t *xbus, struct xbus_ops *ops,
 			   ushort max_send_size,
 			   struct device *transport_device, void *priv);
@@ -259,7 +273,7 @@ void xframe_init(xbus_t *xbus, xframe_t *xframe, void *buf, size_t maxsize,
 	xframe->packets = xframe->first_free = buf;
 	xframe->frame_maxlen = maxsize;
 	atomic_set(&xframe->frame_len, 0);
-	do_gettimeofday(&xframe->tv_created);
+	xframe->kt_created = ktime_get();
 	xframe->xframe_magic = XFRAME_MAGIC;
 }
 EXPORT_SYMBOL(xframe_init);
@@ -946,12 +960,12 @@ static int xbus_initialize(xbus_t *xbus)
 	int unit;
 	int subunit;
 	xpd_t *xpd;
-	struct timeval time_start;
-	struct timeval time_end;
+	ktime_t time_start;
+	ktime_t time_end;
 	unsigned long timediff;
 	int res = 0;
 
-	do_gettimeofday(&time_start);
+	time_start = ktime_get();
 	XBUS_DBG(DEVICES, xbus, "refcount_xbus=%d\n", refcount_xbus(xbus));
 	if (xbus_aquire_xpds(xbus) < 0)	/* Until end of initialization */
 		return -EBUSY;
@@ -989,7 +1003,7 @@ static int xbus_initialize(xbus_t *xbus)
 		}
 	}
 	xbus_echocancel(xbus, 1);
-	do_gettimeofday(&time_end);
+	time_end = ktime_get();
 	timediff = usec_diff(&time_end, &time_start);
 	timediff /= 1000 * 100;
 	XBUS_INFO(xbus, "Initialized in %ld.%1ld sec\n", timediff / 10,
@@ -1152,16 +1166,10 @@ err:
  * it returns only when all XPD's on the bus are detected and
  * initialized.
  */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 20)
 static void xbus_populate(struct work_struct *work)
 {
 	struct xbus_workqueue *worker =
 	    container_of(work, struct xbus_workqueue, xpds_init_work);
-#else
-void xbus_populate(void *data)
-{
-	struct xbus_workqueue *worker = data;
-#endif
 	xbus_t *xbus;
 	struct list_head *card;
 	struct list_head *next_card;
@@ -1238,11 +1246,7 @@ int xbus_process_worker(xbus_t *xbus)
 	}
 	XBUS_DBG(DEVICES, xbus, "\n");
 	/* Initialize the work. (adapt to kernel API changes). */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 20)
 	INIT_WORK(&worker->xpds_init_work, xbus_populate);
-#else
-	INIT_WORK(&worker->xpds_init_work, xbus_populate, worker);
-#endif
 	BUG_ON(!xbus);
 	/* Now send it */
 	if (!queue_work(worker->wq, &worker->xpds_init_work)) {
@@ -1612,11 +1616,6 @@ xbus_t *xbus_new(struct xbus_ops *ops, ushort max_send_size,
 	transport_init(xbus, ops, max_send_size, transport_device, priv);
 	spin_lock_init(&xbus->lock);
 	init_waitqueue_head(&xbus->command_queue_empty);
-	#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
-	timer_setup(&xbus->command_timer, NULL, 0);
-	#else
-	init_timer(&xbus->command_timer);
-	#endif
 	atomic_set(&xbus->pcm_rx_counter, 0);
 	xbus->min_tx_sync = INT_MAX;
 	xbus->min_rx_sync = INT_MAX;
@@ -1770,8 +1769,7 @@ out:
 static void xbus_fill_proc_queue(struct seq_file *sfile, struct xframe_queue *q)
 {
 	seq_printf(sfile,
-		"%-15s: counts %3d, %3d, %3d worst %3d, overflows %3d "
-		"worst_lag %02ld.%ld ms\n",
+		"%-15s: counts %3d, %3d, %3d worst %3d, overflows %3d worst_lag %02lld.%lld ms\n",
 		q->name, q->steady_state_count, q->count, q->max_count,
 		q->worst_count, q->overflows, q->worst_lag_usec / 1000,
 		q->worst_lag_usec % 1000);
@@ -1807,8 +1805,9 @@ static int xbus_proc_show(struct seq_file *sfile, void *data)
 		    seq_printf(sfile, "%5d ", xbus->cpu_rcv_tasklet[i]);
 		seq_printf(sfile, "\n");
 	}
-	seq_printf(sfile, "self_ticking: %d (last_tick at %ld)\n",
-		    xbus->self_ticking, xbus->ticker.last_sample.tv.tv_sec);
+	seq_printf(sfile, "self_ticking: %d (last_tick at %lld)\n",
+		    xbus->self_ticking, ktime_divns(xbus->ticker.last_sample,
+						    NSEC_PER_SEC));
 	seq_printf(sfile, "command_tick: %d\n",
 		    xbus->command_tick_counter);
 	seq_printf(sfile, "usec_nosend: %d\n", xbus->usec_nosend);
@@ -1843,13 +1842,22 @@ static int xbus_read_proc_open(struct inode *inode, struct file *file)
 	return single_open(file, xbus_proc_show, PDE_DATA(inode));
 }
 
-static const struct file_operations xbus_read_proc_ops = {
-	.owner		= THIS_MODULE,
-	.open		= xbus_read_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+#ifdef DAHDI_HAVE_PROC_OPS
+static const struct proc_ops xbus_read_proc_ops = {
+	.proc_open		= xbus_read_proc_open,
+	.proc_read		= seq_read,
+	.proc_lseek		= seq_lseek,
+	.proc_release		= single_release,
 };
+#else
+static const struct file_operations xbus_read_proc_ops = {
+	.owner			= THIS_MODULE,
+	.open			= xbus_read_proc_open,
+	.read			= seq_read,
+	.llseek			= seq_lseek,
+	.release		= single_release,
+};
+#endif /* DAHDI_HAVE_PROC_OPS */
 
 #ifdef	PROTOCOL_DEBUG
 static ssize_t proc_xbus_command_write(struct file *file,
@@ -1942,11 +1950,19 @@ static int proc_xbus_command_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
+#ifdef DAHDI_HAVE_PROC_OPS
+static const struct proc_ops proc_xbus_command_ops = {
+	.proc_open		= proc_xbus_command_open,
+	.proc_write		= proc_xbus_command_write,
+};
+#else
 static const struct file_operations proc_xbus_command_ops = {
 	.owner		= THIS_MODULE,
 	.open		= proc_xbus_command_open,
 	.write		= proc_xbus_command_write,
 };
+#endif /* DAHDI_HAVE_PROC_OPS */
+
 #endif
 
 static int xpp_proc_read_show(struct seq_file *sfile, void *data)
@@ -1976,13 +1992,22 @@ static int xpp_proc_read_open(struct inode *inode, struct file *file)
 	return single_open(file, xpp_proc_read_show, PDE_DATA(inode));
 }
 
-static const struct file_operations xpp_proc_read_ops = {
-	.owner		= THIS_MODULE,
-	.open		= xpp_proc_read_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+#ifdef DAHDI_HAVE_PROC_OPS
+static const struct proc_ops xpp_proc_read_ops = {
+	.proc_open		= xpp_proc_read_open,
+	.proc_read		= seq_read,
+	.proc_lseek		= seq_lseek,
+	.proc_release		= single_release,
 };
+#else
+static const struct file_operations xpp_proc_read_ops = {
+	.owner			= THIS_MODULE,
+	.open			= xpp_proc_read_open,
+	.read			= seq_read,
+	.llseek			= seq_lseek,
+	.release		= single_release,
+};
+#endif /* DAHDI_HAVE_PROC_OPS */
 
 #endif
 

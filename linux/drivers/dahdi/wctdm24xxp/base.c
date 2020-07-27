@@ -50,11 +50,7 @@ Tx Gain - W/Pre-Emphasis: -23.99 to 0.00 db
 #include <linux/delay.h>
 #include <linux/moduleparam.h>
 #include <linux/firmware.h>
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26)
 #include <linux/semaphore.h>
-#else
-#include <asm/semaphore.h>
-#endif
 #include <linux/crc32.h>
 #include <linux/slab.h>
 
@@ -332,15 +328,9 @@ struct bg {
 	int			ret;
 };
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
-static void bg_work_func(void *data)
-{
-	struct bg *bg = data;
-#else
 static void bg_work_func(struct work_struct *work)
 {
 	struct bg *bg = container_of(work, struct bg, work);
-#endif
 	bg->ret = bg->fn(bg->wc, bg->param);
 	complete(&bg->complete);
 }
@@ -377,11 +367,7 @@ bg_create(struct wctdm *wc, bg_work_func_t fn, unsigned long param)
 	}
 
 	init_completion(&bg->complete);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
-	INIT_WORK(&bg->work, bg_work_func, bg);
-#else
 	INIT_WORK(&bg->work, bg_work_func);
-#endif
 
 	bg->wc = wc;
 	bg->fn = fn;
@@ -463,16 +449,10 @@ struct vpmadt032_channel_setup {
 	struct wctdm		*wc;
 };
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
-static void vpm_setup_work_func(void *data)
-{
-	struct vpmadt032_channel_setup *setup = data;
-#else
 static void vpm_setup_work_func(struct work_struct *work)
 {
 	struct vpmadt032_channel_setup *setup =
 		container_of(work, struct vpmadt032_channel_setup, work);
-#endif
 	int i;
 	int res;
 	GpakChannelConfig_t chanconfig;
@@ -634,13 +614,7 @@ static int config_vpmadt032(struct vpmadt032 *vpm, struct wctdm *wc)
 		return -ENOMEM;
 
 	setup->wc = wc;
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
-	INIT_WORK(&setup->work, vpm_setup_work_func, setup);
-#else
 	INIT_WORK(&setup->work, vpm_setup_work_func);
-#endif
-
 	queue_work(vpm->wq, &setup->work);
 
 	return 0;
@@ -1981,12 +1955,14 @@ wctdm_check_battery_lost(struct wctdm *wc, struct wctdm_module *const mod)
 		break;
 	case BATTERY_UNKNOWN:
 		mod_hooksig(wc, mod, DAHDI_RXSIG_ONHOOK);
+		/* fallthrough */
 	case BATTERY_PRESENT:
 		fxo->battery_state = BATTERY_DEBOUNCING_LOST;
 		fxo->battdebounce_timer = wc->framecount + battdebounce;
 		break;
 	case BATTERY_DEBOUNCING_LOST_FROM_PRESENT_ALARM:
-	case BATTERY_DEBOUNCING_LOST: /* Intentional drop through */
+		/* fallthrough */
+	case BATTERY_DEBOUNCING_LOST:
 		if (time_after(wc->framecount, fxo->battdebounce_timer)) {
 			if (debug) {
 				dev_info(&wc->vb.pdev->dev,
@@ -2089,7 +2065,8 @@ wctdm_check_battery_present(struct wctdm *wc, struct wctdm_module *const mod)
 		break;
 	case BATTERY_UNKNOWN:
 		mod_hooksig(wc, mod, DAHDI_RXSIG_OFFHOOK);
-	case BATTERY_LOST: /* intentional drop through */
+		/* fallthrough */
+	case BATTERY_LOST:
 		fxo->battery_state = BATTERY_DEBOUNCING_PRESENT;
 		fxo->battdebounce_timer = wc->framecount + battdebounce;
 		break;
@@ -6132,7 +6109,7 @@ static int __init wctdm_init(void)
 
 	b400m_module_init();
 
-	res = dahdi_pci_module(&wctdm_driver);
+	res = pci_register_driver(&wctdm_driver);
 	if (res)
 		return -ENODEV;
 

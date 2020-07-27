@@ -103,11 +103,7 @@
 #define chan_to_netdev(h) ((h)->hdlcnetdev->netdev)
 
 /* macro-oni for determining a unit (channel) number */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
-#define	UNIT(file) MINOR(file->f_dentry->d_inode->i_rdev)
-#else
 #define	UNIT(file) MINOR(file->f_path.dentry->d_inode->i_rdev)
-#endif
 
 EXPORT_SYMBOL(dahdi_transcode_fops);
 EXPORT_SYMBOL(dahdi_init_tone_state);
@@ -202,7 +198,7 @@ static int maxlinks;
 
 static struct core_timer {
 	struct timer_list timer;
-	struct timespec start_interval;
+	ktime_t start_interval;
 	unsigned long interval;
 	int dahdi_receive_used;
 	atomic_t count;
@@ -1019,6 +1015,14 @@ static int dahdi_proc_open(struct inode *inode, struct file *file)
 	return single_open(file, dahdi_seq_show, PDE_DATA(inode));
 }
 
+#ifdef DAHDI_HAVE_PROC_OPS
+static const struct proc_ops dahdi_proc_ops = {
+	.proc_open		= dahdi_proc_open,
+	.proc_read		= seq_read,
+	.proc_lseek		= seq_lseek,
+	.proc_release		= single_release,
+};
+#else
 static const struct file_operations dahdi_proc_ops = {
 	.owner		= THIS_MODULE,
 	.open		= dahdi_proc_open,
@@ -1026,6 +1030,7 @@ static const struct file_operations dahdi_proc_ops = {
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
+#endif /* DAHDI_HAVE_PROC_OPS */
 
 #endif
 
@@ -1121,8 +1126,8 @@ static void dahdi_check_conf(int x)
 #endif
 
 	/* return if no valid conf number */
-        if ((x <= 0) || (x >= DAHDI_MAX_CONF))
-                return;
+	if (x <= 0)
+		return;
 
 	/* Return if there is no alias */
 	if (!confalias[x])
@@ -1974,12 +1979,10 @@ static inline void print_debug_writebuf(struct dahdi_chan* ss, struct sk_buff *s
 #endif
 
 #ifdef CONFIG_DAHDI_NET
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 26)
 static inline struct net_device_stats *hdlc_stats(struct net_device *dev)
 {
 	return &dev->stats;
 }
-#endif
 
 static int dahdi_net_open(struct net_device *dev)
 {
@@ -3943,19 +3946,11 @@ static void __dahdi_find_master_span(void)
 		module_printk(KERN_NOTICE, "Master changed to %s\n", s->name);
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
-static void _dahdi_find_master_span(void *work)
-{
-	__dahdi_find_master_span();
-}
-static DECLARE_WORK(find_master_work, _dahdi_find_master_span, NULL);
-#else
 static void _dahdi_find_master_span(struct work_struct *work)
 {
 	__dahdi_find_master_span();
 }
 static DECLARE_WORK(find_master_work, _dahdi_find_master_span);
-#endif
 
 static void dahdi_find_master_span(void)
 {
@@ -4975,9 +4970,6 @@ static int dahdi_ioctl_chanconfig(struct file *file, unsigned long data)
 			chan->hdlcnetdev->netdev = alloc_hdlcdev(chan->hdlcnetdev);
 			if (chan->hdlcnetdev->netdev) {
 				chan->hdlcnetdev->chan = chan;
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 23)
-				SET_MODULE_OWNER(chan->hdlcnetdev->netdev);
-#endif
 				chan->hdlcnetdev->netdev->tx_queue_len = 50;
 #ifdef HAVE_NET_DEVICE_OPS
 				chan->hdlcnetdev->netdev->netdev_ops = &dahdi_netdev_ops;
@@ -5714,9 +5706,9 @@ static int dahdi_ioctl_setconf(struct file *file, unsigned long data)
 	}
 	  /* if changing confs, clear last added info */
 	if (conf.confno != chan->confna) {
-		memset(chan->conflast, 0, DAHDI_MAX_CHUNKSIZE);
-		memset(chan->conflast1, 0, DAHDI_MAX_CHUNKSIZE);
-		memset(chan->conflast2, 0, DAHDI_MAX_CHUNKSIZE);
+		memset(chan->conflast, 0, sizeof(chan->conflast));
+		memset(chan->conflast1, 0, sizeof(chan->conflast1));
+		memset(chan->conflast2, 0, sizeof(chan->conflast2));
 	}
 	oldconf = chan->confna;  /* save old conference number */
 	chan->confna = conf.confno;   /* set conference number */
@@ -7460,7 +7452,7 @@ static int _dahdi_register_device(struct dahdi_device *ddev,
 		__dahdi_init_span(s);
 	}
 
-	ktime_get_ts(&ddev->registration_time);
+	ddev->registration_time = ktime_get();
 	ret = dahdi_sysfs_add_device(ddev, parent);
 	if (ret)
 		return ret;
@@ -7965,7 +7957,7 @@ static inline void __dahdi_process_getaudio_chunk(struct dahdi_chan *ss, unsigne
 			memset(getlin, 0, DAHDI_CHUNKSIZE * sizeof(short));
 			txb[0] = DAHDI_LIN2X(0, ms);
 			memset(txb + 1, txb[0], DAHDI_CHUNKSIZE - 1);
-			/* fall through to normal conf mode */
+			/* fallthrough */
 		case DAHDI_CONF_CONF:	/* Normal conference mode */
 			if (is_pseudo_chan(ms)) /* if pseudo-channel */
 			   {
@@ -7977,8 +7969,8 @@ static inline void __dahdi_process_getaudio_chunk(struct dahdi_chan *ss, unsigne
 					ACSS(k, conf_sums_next[ms->_confn]);
 					/* save last one */
 					memcpy(ms->conflast2, ms->conflast1, DAHDI_CHUNKSIZE * sizeof(short));
-					memcpy(ms->conflast1, k, DAHDI_CHUNKSIZE * sizeof(short));
 					/*  get amount actually added */
+					memcpy(ms->conflast1, k, DAHDI_CHUNKSIZE * sizeof(short));
 					SCSS(ms->conflast1, conf_sums_next[ms->_confn]);
 					/* Really add in new value */
 					ACSS(conf_sums_next[ms->_confn], ms->conflast1);
@@ -8533,7 +8525,7 @@ static void __dahdi_hooksig_pvt(struct dahdi_chan *chan, enum dahdi_rxsig rxsig)
 			break;
 		}
 #endif
-		/* fall through intentionally */
+		/* fallthrough */
 	   case DAHDI_SIG_FXSGS:  /* FXS Groundstart */
 		if (rxsig == DAHDI_RXSIG_ONHOOK) {
 			chan->ringdebtimer = RING_DEBOUNCE_TIME;
@@ -8552,7 +8544,7 @@ static void __dahdi_hooksig_pvt(struct dahdi_chan *chan, enum dahdi_rxsig rxsig)
 				chan->gotgs = 1;
 			}
 		}
-		/* fall through intentionally */
+		/* fallthrough */
 	   case DAHDI_SIG_FXOLS: /* FXO Loopstart */
 	   case DAHDI_SIG_FXOKS: /* FXO Kewlstart */
 		switch(rxsig) {
@@ -9174,7 +9166,7 @@ static void __putbuf_chunk(struct dahdi_chan *ss, unsigned char *rxb, int bytes)
 	int oldbuf;
 	int eof=0;
 	int abort=0;
-	int res = 0;
+	int res;
 	int left, x;
 
 	while(bytes) {
@@ -9405,11 +9397,7 @@ that the waitqueue is empty. */
 #ifdef CONFIG_DAHDI_NET
 		if (skb && dahdi_have_netdev(ms))
 		{
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,22)
-			skb->mac.raw = skb->data;
-#else
 			skb_reset_mac_header(skb);
-#endif
 			skb->dev = chan_to_netdev(ms);
 #ifdef DAHDI_HDLC_TYPE_TRANS
 			skb->protocol = hdlc_type_trans(skb,
@@ -10067,47 +10055,22 @@ static void coretimer_cleanup(void)
 
 #else
 
-static unsigned long core_diff_ms(struct timespec *t0, struct timespec *t1)
-{
-	long nanosec, sec;
-	unsigned long ms;
-	sec = (t1->tv_sec - t0->tv_sec);
-	nanosec = (t1->tv_nsec - t0->tv_nsec);
-	while (nanosec >= NSEC_PER_SEC) {
-		nanosec -= NSEC_PER_SEC;
-		++sec;
-	}
-	while (nanosec < 0) {
-		nanosec += NSEC_PER_SEC;
-		--sec;
-	}
-	ms = (sec * 1000) + (nanosec / 1000000L);
-	return ms;
-}
-
 static inline unsigned long msecs_processed(const struct core_timer *const ct)
 {
 	return atomic_read(&ct->count) * DAHDI_MSECS_PER_CHUNK;
 }
 
-/*static void coretimer_func(unsigned long param)*/
-static void coretimer_func(
-#ifdef init_timer      /* Compatibility for pre 4.15 interface */
-               unsigned long param
-#else
-               struct timer_list *t
-#endif
-)
+static void coretimer_func(TIMER_DATA_TYPE unused)
 {
 	unsigned long flags;
-	unsigned long ms_since_start;
-	struct timespec now;
+	long ms_since_start;
+	ktime_t now;
 	const unsigned long MAX_INTERVAL = 100000L;
 	const unsigned long ONESEC_INTERVAL = HZ;
 	const long MS_LIMIT = 3000;
 	long difference;
 
-	ktime_get_ts(&now);
+	now = ktime_get();
 
 	if (atomic_read(&core_timer.count) ==
 	    atomic_read(&core_timer.last_count)) {
@@ -10125,7 +10088,7 @@ static void coretimer_func(
 				  core_timer.interval);
 		}
 
-		ms_since_start = core_diff_ms(&core_timer.start_interval, &now);
+		ms_since_start = ktime_ms_delta(now, core_timer.start_interval);
 
 		/*
 		 * If the system time has changed, it is possible for us to be
@@ -10178,17 +10141,14 @@ static void coretimer_func(
 
 static void coretimer_init(void)
 {
-/*	init_timer(&core_timer.timer);
-	core_timer.timer.function = coretimer_func;*/
 	timer_setup(&core_timer.timer, coretimer_func, 0);
-	ktime_get_ts(&core_timer.start_interval);
+	core_timer.start_interval = ktime_get();
 	atomic_set(&core_timer.count, 0);
 	atomic_set(&core_timer.shutdown, 0);
 	core_timer.interval = max(msecs_to_jiffies(DAHDI_MSECS_PER_CHUNK), 1UL);
 	if (core_timer.interval < (HZ/250))
 		core_timer.interval = (HZ/250);
-	core_timer.timer.expires = jiffies + core_timer.interval;
-	add_timer(&core_timer.timer);
+	mod_timer(&core_timer.timer, jiffies + core_timer.interval);
 }
 
 static void coretimer_cleanup(void)
@@ -10484,7 +10444,7 @@ static const struct file_operations dahdi_chan_fops = {
 #ifdef CONFIG_DAHDI_WATCHDOG
 static struct timer_list watchdogtimer;
 
-static void watchdog_check(unsigned long ignored)
+static void watchdog_check(TIMER_DATA_TYPE ignored)
 {
 	unsigned long flags;
 	static int wdcheck=0;
@@ -10525,10 +10485,7 @@ static void watchdog_check(unsigned long ignored)
 
 static int __init watchdog_init(void)
 {
-	init_timer(&watchdogtimer);
-	watchdogtimer.expires = 0;
-	watchdogtimer.data =0;
-	watchdogtimer.function = watchdog_check;
+	timer_setup(&watchdogtimer, watchdog_check, 0);
 	/* Run every couple of jiffy or so */
 	mod_timer(&watchdogtimer, jiffies + 2);
 	return 0;
@@ -10584,35 +10541,10 @@ failed_driver_init:
 	return res;
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 25)
-#ifdef CONFIG_PCI
-void dahdi_pci_disable_link_state(struct pci_dev *pdev, int state)
-{
-	u16 reg16;
-	int pos = pci_find_capability(pdev, PCI_CAP_ID_EXP);
-	state &= (PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1 |
-		  PCIE_LINK_STATE_CLKPM);
-	if (!pos)
-		return;
-	pci_read_config_word(pdev, pos + PCI_EXP_LNKCTL, &reg16);
-	reg16 &= ~(state);
-	pci_write_config_word(pdev, pos + PCI_EXP_LNKCTL, reg16);
-}
-EXPORT_SYMBOL(dahdi_pci_disable_link_state);
-#endif /* CONFIG_PCI */
-#endif /* 2.6.25 */
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 22)
-static inline void flush_find_master_work(void)
-{
-	flush_scheduled_work();
-}
-#else
 static inline void flush_find_master_work(void)
 {
 	cancel_work_sync(&find_master_work);
 }
-#endif
 
 static void __exit dahdi_cleanup(void)
 {

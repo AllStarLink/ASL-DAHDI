@@ -2975,7 +2975,7 @@ static void init_spans(struct b4xxp *b4)
 static void b4xxp_bottom_half(unsigned long data);
 
 /* top-half interrupt handler */
-DAHDI_IRQ_HANDLER(b4xxp_interrupt)
+static irqreturn_t b4xxp_interrupt(int irq, void *dev_id)
 {
 	struct b4xxp *b4 = dev_id;
 	unsigned char status;
@@ -3702,7 +3702,7 @@ static int __init b4xx_init(void)
 		printk(KERN_ERR "%s: ERROR: Could not initialize /proc/%s\n",THIS_MODULE->name, PROCFS_NAME);
 	}
 #endif
-	if (dahdi_pci_module(&b4xx_driver))
+	if (pci_register_driver(&b4xx_driver))
 		return -ENODEV;
 
 	return 0;
