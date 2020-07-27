@@ -129,7 +129,8 @@ static int xpp_ticker_step(struct xpp_ticker *ticker, const ktime_t t)
 		usec = ktime_us_delta(ticker->last_sample,
 					ticker->first_sample);
 		ticker->first_sample = ticker->last_sample;
-		ticker->tick_period = usec / ticker->cycle;
+		(void)do_div(usec,ticker->cycle);
+		ticker->tick_period = usec;
 		cycled = 1;
 	}
 	ticker->count++;
@@ -494,10 +495,11 @@ static void send_drift(xbus_t *xbus, int drift)
 	else
 		msg = "down";
 	msec_delta = ktime_ms_delta(now, xbus->pll_updated_at);
+	(void)do_div(msec_delta,MSEC_PER_SEC);
 	XBUS_DBG(SYNC, xbus,
 		 "%sDRIFT adjust %s (%d) (last update %lld seconds ago)\n",
 		 (disable_pll_sync) ? "Fake " : "", msg, drift,
-		 msec_delta / MSEC_PER_SEC);
+		 msec_delta);
 	if (!disable_pll_sync)
 		CALL_PROTO(GLOBAL, SYNC_SOURCE, xbus, NULL, SYNC_MODE_PLL,
 			   drift);

@@ -871,7 +871,7 @@ static void xpp_send_callback(struct urb *urb)
 	ktime_t now;
 	s64 usec;
 	int writes = atomic_read(&xusb->pending_writes);
-	int i;
+	s64 i;
 
 	if (!xbus) {
 		XUSB_ERR(xusb,
@@ -887,7 +887,9 @@ static void xpp_send_callback(struct urb *urb)
 		usec = 0; /* System clock jumped */
 	if (usec > xusb->max_tx_delay)
 		xusb->max_tx_delay = usec;
-	i = usec / USEC_BUCKET;
+	i = usec;
+	(void)do_div(i,USEC_BUCKET);
+	//i = (s32)usec / USEC_BUCKET;
 	if (i >= NUM_BUCKETS)
 		i = NUM_BUCKETS - 1;
 	xusb->usb_tx_delay[i]++;

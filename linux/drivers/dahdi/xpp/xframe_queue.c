@@ -42,8 +42,9 @@ static void __xframe_dump_queue(struct xframe_queue *q)
 		xpacket_t *pack = (xpacket_t *)&xframe->packets[0];
 		s64 usec = ktime_us_delta(now, xframe->kt_queued);
 
-		snprintf(prefix, ARRAY_SIZE(prefix), "  %3d> %5lld.%03lld msec",
-			 i++, usec / 1000, usec % 1000);
+		s64 remainder = do_div(usec,1000);
+		snprintf(prefix, ARRAY_SIZE(prefix), "  %3d> %5d.%03d msec",
+			 i++, usec, remainder);
 		dump_packet(prefix, pack, 1);
 	}
 }
