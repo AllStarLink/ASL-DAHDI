@@ -34,7 +34,7 @@
 #include <xusb.h>
 #include <xtalk.h>
 
-static const char rcsid[] = "$Id$";
+//static const char rcsid[] = "$Id$";
 
 #define	DBG_MASK	0x02
 
@@ -512,7 +512,7 @@ int mpp_send_seg(struct astribank_device *astribank, const uint8_t *data, uint16
 
 	assert(astribank != NULL);
 	xtalk_dev = astribank->xtalk_dev;
-	if(!astribank->burn_state == BURN_STATE_STARTED) {
+	if(astribank->burn_state != BURN_STATE_STARTED) {
 		ERR("Tried to send a segment while burn_state=%d\n",
 				astribank->burn_state);
 		return -EINVAL;

@@ -28,7 +28,7 @@
 #include <ctype.h>
 #include "hexfile.h"
 
-static const char rcsid[] = "$Id$";
+//static const char rcsid[] = "$Id$";
 
 static parse_hexfile_report_func_t	report_func = NULL;
 
