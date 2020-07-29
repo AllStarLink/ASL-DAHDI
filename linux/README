@@ -39,6 +39,10 @@ Digital Cards
   * Digium E100P: PCI single-port E1
 - wcb4xxp:
   * Digium B410: PCI quad-port BRI
+  * Digium B233: PCI-Express dual-port BRI with echo can
+  * Digium B234: PCI dual-port dual-port BRI with echo can
+  * Digium B433: PCI-Express quad-port BRI with echo can
+  * Digium B434: PCI quad-port BRI with echo can
 - tor2: Tormenta quad-span T1/E1 card from the Zapata Telephony project
 
 
