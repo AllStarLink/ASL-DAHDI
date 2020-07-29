@@ -1,0 +1,5 @@
+* Replace modules in drivers/dahdi with patches:
+  - vzaphfc: not actually used. Leave it for current release (2.2.0.2-1)
+    until we're sur zaphfc actually works. Then remove it (this package
+    is sadyl its upstream).
+  - Convert the other two drivers to patches.

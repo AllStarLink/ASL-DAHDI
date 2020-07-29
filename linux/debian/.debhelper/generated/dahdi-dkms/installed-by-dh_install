@@ -1,0 +1,7 @@
+./Makefile
+./build_tools
+./drivers
+./include
+./debian/dkms.conf
+./.version
+./debian/dahdi-dkms.metainfo.xml

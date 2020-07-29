@@ -1,0 +1,57 @@
+#!/bin/sh
+
+#excluded_modules="dahdi_dummy|dahdi_vpmadt032_loader"
+# * dahdi_vpmadt032_loader: architecture-dependent. May not exist
+# * dahdi_echocan_oslec: fails for an odd reason. No time to figure this
+#   now. Loads and works fine in the m-a test.
+excluded_modules="dahdi_vpmadt032_loader|dahdi_echocan_oslec"
+dkms_conf="debian/dkms.conf.in"
+skip_status=77
+
+#
+# Check DKMS installation
+#
+dkms status
+dkms status -k $(uname -r) | grep -q ": installed"
+if [ $? -ne 0 ]; then
+	echo "DKMS installation: failed for $(uname -r)!"
+	exit $skip_status
+fi
+echo "DKMS installation: OK"
+
+#
+# Load all the DAHDI modules:
+#
+
+set -e
+
+# Excuded modules:
+# * dahdi_vpmadt032_loader is architecture-dependent
+# * dahdi_dummy: should not be on this list. It is not built
+modules=`awk -F'"' '/^BUILT_MODULE_NAME/ {print $2}' $dkms_conf | grep -E -v "$excluded_modules"`
+
+echo "Unloading any existing modules:"
+/usr/share/dahdi/dahdi-modules unload
+echo "Loading all modules: $modules"
+find /lib/modules/$(uname -r) -name '*.ko' | grep dahdi
+for module in $modules; do
+	if ! modprobe $module; then
+		dmesg | tail
+		echo "Failed to load module $module."
+		exit 1
+	fi
+done
+
+echo "Unloading them all again"
+/usr/share/dahdi/dahdi-modules unload
+if lsmod | grep -w echo; then
+	rmmod echo
+fi
+
+# uninstall, to not get in the way of the m-a test
+dkms uninstall dahdi/`dkms status dahdi | cut -d, -f2 | head -n1` --all
+
+echo "DAHDI modules load: OK"
+
+exit 0
+

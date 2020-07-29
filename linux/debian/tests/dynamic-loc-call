@@ -1,0 +1,118 @@
+#!/bin/sh
+set -e
+#
+# Check:
+# * module-assistant installation
+# * Create dynamic local spans
+# * Generate spans and configure them, in both DAHDI and Asterisk levels.
+# * a DAHDI call in Asterisk using the DAHD-dynamic module
+#
+
+data_dir="debian/tests/dynamic-loc-data"
+test_results_dir="/var/log/asterisk/testresults"
+num_spans=2
+num_chans=48
+m_a="m-a -i -t -q"
+
+die() {
+	echo "[E] $@"
+	exit 1
+}
+
+log() {
+	echo "[I] $@"
+}
+
+cleanup() {
+	dahdi_span_assignments remove 2>&1 || :
+	/usr/share/dahdi/dahdi-modules unload || :
+	packages_to_remove=`dpkg-query -W 'dahdi-modules-*' 2>/dev/null | awk '{print $1}'`
+	if [ "$packages_to_remove" ]; then
+		dpkg --purge $packages_to_remove
+	fi
+}
+
+setup() {
+	cp -a $data_dir/dahdi/* /etc/dahdi/
+	cp -a $data_dir/asterisk/* /etc/asterisk/
+	systemctl restart asterisk || : # Also makes sure it is running
+}
+
+# Build and install module using module-assistant.
+# Does nothing if module is already built.
+m_a_mod_build() {
+	$m_a prepare 2>&1
+	$m_a a-i dahdi 2>&1
+	if ! m-a list dahdi | grep -q 'deb$'; then
+		die "Module Assistant dahdi installation: failed for $(uname -r)."
+	fi
+	log "Module Assistant dahdi module installed."
+}
+
+# local "dynamic" spans don't need hardware. They are dummy spans that
+# use much of the DAHDI mechanism without any hardware
+load_dynamic_spans() {
+	# An explicit modprobe is needed because dahdi_cfg uses the dahdi devices:
+	modprobe dahdi
+	if [ $? != 0 ]; then
+		die "Failed to load module dahdi: $?"
+	fi
+
+	# Generate the devices for the dynamic spans:
+	dahdi_cfg -c /etc/dahdi/dynamic.conf
+	if [ `dahdi_span_assignments list | wc -l ` != "$num_spans" ]; then
+		dahdi_span_assignments list
+		die "Dynamic spans were not generated."
+	fi
+
+	# The spans will get automatically created and configured in Asterisk
+	# using the udev hooks. It should take less than a second
+	sleep 5
+	if [ `lsdahdi | grep '(In use)' | wc -l ` != "$num_chans" ]; then
+		lsdahdi
+		die "Spans not created or channels not properly registered in Asterisk."
+	fi
+	log "Asterisk configured with DAHDI channels."
+}
+
+# Make a test call using the TestClient and TestServer applications.
+# We make sure that the call was set up (which shows that the D-channels
+# on both spans work OK) and that they can properly talk to each other
+# (which probably shows that the B-channels in both spans are OK).
+test_asterisk_call() {
+	id=`date +%H%M%S`	# would be nice to avoid collisions
+	rm -f "$test_results_dir/$id"-*.txt
+	asterisk -rx "channel originate DAHDI/1/1234567890 application TestClient $id"
+	for i in `seq 90`; do
+		if grep -q FAIL "$test_results_dir/$id"-*.txt 2>/dev/null; then
+			cat "$test_results_dir/$id"-*.txt
+			die "Test DAHDI call in Asterisk failed (id: $id)."
+		fi
+		end_lines=`grep -- "-- END TEST--" "$test_results_dir/$id"-*.txt 2>/dev/null | wc -l`
+		if [ "$end_lines" = "2" ]; then  # Test ended, that is: OK, in both sides
+			log "Test DAHDI call in Asterisk ended OK."
+			return
+		fi
+		sleep 1
+	done
+	die "Test DAHDI call in Asterisk timed out."
+}
+
+# initial cleanup: start with a clean slate.
+cleanup 2>&1
+setup
+
+m_a_mod_build
+load_dynamic_spans
+test_asterisk_call
+
+# Final cleanup, because I don't want to leave the DAHDI modules loaded.
+# Asterisk is left running.
+cleanup
+
+if lsmod | grep dahdi; then
+	die "a DAHDI module is still loaded. Aborting"
+fi
+
+exit 0
+

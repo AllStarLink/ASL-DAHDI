@@ -1,0 +1,2 @@
+SUBSYSTEM=="dahdi",  GROUP="dialout", MODE="0660"
+

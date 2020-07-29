@@ -1,0 +1,96 @@
+Building kernel modules
+-----------------------
+First, install dahdi-source package if you have not yet done so.
+
+You can build and install the modules package (as root) with the
+following command:
+# module-assistant a-i dahdi
+
+It may be handy (for e.g., testing purposes) to build the module packages
+for all of the kernel-header packages installed on your system. Something
+in the lines of:
+
+  m-a -u . -t -i -f -k "`echo usr/src/kernel-headers-*`" build dahdi
+
+You can also use the environment variable TARBALL to build the modules
+with a custom dahdi.tar.bz2 tarball with some local modifications.
+
+
+Device Files
+------------
+DAHDI uses device files with major number 196 under /dev/dahdi/. In
+Debian all of those files are 0660 and owned by the group dialout. They
+should normally created by udev.
+
+If you can't generate device files with udev, use the script
+make_static_nodes in the examples directory of dahdi-linux. Please also
+let us know that generating static file is actually needed.
+
+
+Removed VPMADT032 Support
+-------------------------
+VPMADT032 is a hardware echo canceller module. It is an optional addon
+in various Digium cards. Currently in those serviced by wcte12xp and
+wctdm24xxp. As of DAHDI 2.2 using it requires a binary-only object file
+to be linked with DAHDI at build time. This object file is downloaded at
+build time from downloads.digium.com . This is naturally not something we
+can support. And thus we disabled building it.
+
+Unlike the Digium firmwares, this is not something that can be reverted at
+run-time.
+
+
+Echo Canceller
+--------------
+Open Source Line Echo Canceller (OSLEC) is an alternative echo canceller
+developed outside the main Zaptel tree. It is currently labelled "Beta".
+For more information see http://www.rowetel.com/ucasterisk/oslec.html .
+It generally works much better than the default upstream echo canceller
+(MG2). On the downside, it has a higher CPU consumption.
+
+The version of OSLEC included is currently one from the staging directory.
+This is done temporarily until that driver will find its way into the
+mainline tree and to help test it.
+
+According to early tests by OSLEC users, the default Asterisk echo
+canceller size of 128 taps (16ms) should be good enough for most
+installations, and 256 taps (32 ms) should cover just about any case.
+For phones connected to FXS ports you can use substatially lower values
+in order to reduce CPU consumption. e.g: 8ms or even 4 ms (64 taps or 32
+taps).
+
+Setting the number of taps for a channel in Asterisk's chan_dahdi is done
+using the following in Asterisk's chan_dahdi.conf:
+
+  echocancell=NNN
+
+where NNN is the number of taps. See Asterisk sample zapata.conf .
+
+
+Build-time Tests
+----------------
+One sanity check to run when making changes in the package is to make
+(besides the usual lintian) is to make sure that the modules
+packages still builds. This is also useful to get a binary modules
+package built directly from the source tree.
+
+For this to work you should first have a version of dahdi-source
+installed (any version. modules-assitant needs a few files from it in
+place). This allows you to use the script debian/modulestest as a
+post-build hook:
+
+  gbp buildpackage --git-postbuild='debian/modulestest -r' -uc -us
+
+This will rebuild the dahdi-modules for your current kernel, or spend
+much more time with:
+
+  gbp buildpackage --git-postbuild='debian/modulestest -a' -uc -us
+
+to build dahdi-modules for all of your currently-installed
+dahdi-modules packages. The log from the build will go to the file
+dahdi-modules-build-<version>.log in the build-area directory. e.g:
+dahdi-modules-build-2.11.1~dfsg-1.log .
+
+The script should also run ls for the module packages built. You should
+chack that all packages were indeed built and that their size looks sane
+(no driver was left unbuilt).

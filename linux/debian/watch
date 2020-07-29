@@ -1,0 +1,7 @@
+version=3
+
+opts=uversionmangle=s/\-rc/~rc/,dversionmangle=s/\~dfsg//,oversionmangle=s/$/\~dfsg/,pgpsigurlmangle=s/$/.asc/ \
+	http://downloads.asterisk.org/pub/telephony/dahdi-linux/releases/dahdi-linux-(.*)\.tar\.gz\
+	debian uupdate
+
+

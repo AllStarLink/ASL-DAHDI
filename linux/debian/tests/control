@@ -1,0 +1,13 @@
+Tests: dkms-modules
+Depends: dkms, dahdi-dkms, dahdi-linux
+# needs-recommends: dkms recommends kernel headers.
+# The alternative would be to try and install them, and ten build and
+# install the dkms module in the script. But this is not a proper test
+# of how dkms should work.
+# And even then, the linux-headers get configured after dahdi-dkms, and
+# fail the test (and hense: skippable).
+Restrictions: needs-root, isolation-machine, needs-recommends, skippable
+
+Tests: dynamic-loc-call
+Depends: dahdi-source, module-assistant, dahdi, asterisk-dahdi, asterisk
+Restrictions: needs-root, isolation-machine

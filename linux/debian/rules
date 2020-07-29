@@ -1,0 +1,113 @@
+#!/usr/bin/make -f
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+export HOTPLUG_FIRMWARE=1
+
+ifneq (,$(findstring debug,$(DEB_BUILD_OPTIONS)))
+	CFLAGS += -g
+endif
+
+# For DKMS. Use the full release (e.g.: 2.2.1+dfsg-1ubuntu1)
+include /usr/share/dpkg/pkg-info.mk
+CVERSION = DEB_VERSION
+
+## MODULE-ASSISTANT STUFF
+# prefix of the target package name
+PREFIX:=dahdi
+SKPG:=$(PREFIX)-source
+PACKAGE:=$(PREFIX)-modules
+PACKAGE_SRC:=$(PREFIX)-linux
+# modifieable for experiments or debugging m-a
+MA_DIR ?= /usr/share/modass
+# load generic variable handling
+-include $(MA_DIR)/include/generic.make
+# load default rules
+-include $(MA_DIR)/include/common-rules.make
+
+# If the makefile was properly-writen, there was a good separation
+# between kernel and userspace. As things stand now I'd like to work
+# around problems with bilding stuff with HOSTCC by simply providing
+# the generated headers as part of the source:
+GENERATED_SOURCES := include/dahdi/version.h
+BUILD_DATE=$(shell dpkg-parsechangelog --show-field Date)
+
+%:
+	dh $@
+
+kdist_clean: clean
+
+kdist_config: prep-deb-files
+
+binary-modules: prep-deb-files
+	dh_testdir
+	dh_testroot
+	dh_prep
+	#cp -a $(CURDIR)/debian/generated/* .
+	make modules KERNEL_SOURCES=$(KSRC) MODVERSIONS=detect KERNEL=linux-$(KVERS)
+	make install-modules KERNELRELEASE=$(KVERS) DESTDIR=$(CURDIR)/debian/$(PKGNAME)
+	# The modules are way too big. This is only in kernel 2.6
+	# (Removed for now: breaks cross-building)
+	#find debian/$(PKGNAME)/lib/modules -name '*.ko' |xargs strip -g
+	$(RM) -f debian/$(PKGNAME)/lib/modules/$(KVERS)/modules.*
+	dh_installmodules
+	dh_installdebconf
+	dh_installdocs
+	dh_installchangelogs
+	dh_compress
+	dh_fixperms
+	dh_installdeb
+	dh_gencontrol -- -v$(VERSION)
+	dh_md5sums
+	dh_builddeb --destdir=$(DEB_DESTDIR)
+
+## END OF M-A SECTION
+
+override_dh_auto_build:
+	# For DKMS
+	sed -e "s|#CVERSION#|$(CVERSION)|"				 \
+		debian/dkms.conf.in > debian/dkms.conf
+	sed -e "s|#CVERSION#|$(CVERSION)|"				 \
+		debian/dahdi-dkms.install.in > debian/dahdi-dkms.install
+
+	$(MAKE) docs
+	$(MAKE) $(GENERATED_SOURCES)
+
+override_dh_auto_clean:
+	# Delete the generated dkms files
+	rm -f debian/dahdi-dkms.install
+	rm -f debian/dkms.conf
+	rm -f $(GENERATED_SOURCES)
+	rm -f dahdi/include/version.h
+	[ ! -f Makefile ] || $(MAKE) dist-clean || true
+
+TARPARDIR=$(CURDIR)/debian/tmp
+TARDIR=$(TARPARDIR)/modules/$(PREFIX)
+
+override_dh_auto_install:
+	$(MAKE) install-include DESTDIR=$(CURDIR)/debian/$(SKPG)
+
+override_dh_install:
+	dh_install
+	# driver source code
+	mkdir -p $(TARDIR)/debian/generated
+	cp Makefile $(TARDIR)/
+	cp -p .version $(TARDIR)/
+	for dir in build_tools firmware include drivers; do \
+	  if [ -d $$dir ]; then cp -r $$dir $(TARDIR); fi; \
+	done
+	
+	# Packaging infrastructure
+	cp -r debian/rules debian/changelog debian/copyright\
+	  debian/control debian/compat \
+	  debian/control.modules.in \
+	  $(TARDIR)/debian/
+	
+	tar cjf debian/$(SKPG)/usr/src/$(PREFIX).tar.bz2 \
+	  -C $(TARPARDIR) modules \
+	  --mode=go=rX,u+rw,a-s --sort=name --mtime="$(BUILD_DATE)"
+	rm -rf $(TARPARDIR)/modules
+
+	# Adding a call explicitly, as 'dh --with dkms' breaks m-i
+	dh_dkms

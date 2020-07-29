@@ -1,0 +1,2 @@
+#/usr/share/dahdi/init_card_5_30 is a dummy script:
+unusual-interpreter usr/share/dahdi/init_card_5_30 #!/bin/true

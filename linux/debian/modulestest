@@ -1,0 +1,90 @@
+#!/bin/sh
+
+# debian/modulestest: a postbuild script to build dahdi modules
+# example usage:
+#  
+#  gbp buildpackage --git-postbuild='debian/modulestest -r'
+#
+#  debuild  --post-dpkg-buildpackage-hook="$PWD/debian/modulestest -v %v -r"
+#
+# At least one of the following two must be set to a sensible value:
+# If both are empty, the script does nothing useful)
+#
+# kernel versions: Comma-separated. Use those if you have their
+# kernel-headers/linux-headers packages installed
+#
+
+# PACKAGE is set by svn-buildpackage to "dahdi-linux" . Override that:
+PACKAGE=dahdi
+
+# Full pathes to trees:
+# Use this to provide a full path to a custom kernel tree:
+#KERNEL_SOURCES=$HOME/Proj/Debs/Kernel/SwSusp/linux-2.6.15-rc5
+KERNEL_HEADERS=
+KERNEL_SOURCES=
+DEBUILD_VERSION=
+# run module-asustant with environment params that will generate
+# .changes files even without signing
+MODASS="env SIGNCHANGES=1 DEBSIGNCOMMAND=not_an_executable m-a"
+me=`basename $0`
+
+# workaround for silly bash parsing issue in our build scripts:
+if [ "$#" -lt 1 ]; then
+  set -- $MODULESTEST_ARGS
+fi
+
+while getopts ah:rs:tv: arg
+do
+  case "$arg" in
+    a) # All of the kernel-headers packages installed:
+        KERNEL_HEADERS=`COLUMNS=160 dpkg -l 'kernel-headers-[2-9].*-*-*' | awk '/^.i/{print $2}' | sed -e 's/^kernel-headers-//'| xargs| tr ' ' ,`
+      ;;
+    h) KERNEL_HEADERS=$OPTARG;;
+    s) KERNEL_SOURCES=$OPTARG;;
+    r) KERNEL_HEADERS=`uname -r`;;
+    t) # TODO: make this test per-distro or something 
+      KERNEL_HEADERS=2.4.27-2-386,2.6.8-2-686-smp
+      ;;
+    v) DEBUILD_VERSION=$OPTARG;;
+  esac
+done
+shift $(( $OPTIND-1 ))
+
+echo "Building for: Headers: $KERNEL_HEADERS, Sources: $KERNEL_SOURCES"
+
+if [ "$KERNEL_HEADERS" != '' ]; then hdrs_sw="-l $KERNEL_HEADERS"; fi
+if [ "$KERNEL_SOURCES" != '' ]; then srcs_sw="-k $KERNEL_SOURCES"; fi
+
+if [ "$GBP_CHANGES_FILE" = '' ]; then
+	GBP_CHANGES_FILE=`ls -t dahdi-linux_$DEBUILD_VERSION_*.changes | head -n1`
+fi
+DEB_NAME=`awk '/dahdi-source_/ {print $3}' $GBP_CHANGES_FILE | head -n1`
+DEB_VERSION=`awk -F: '/^Version:/ {print $3}' $GBP_CHANGES_FILE`
+# must be absolute for m-a ta accept TARBALL:
+# Also note that $PWD is ugly and is about to be deleted. We need
+# $PWD/.. 
+
+if [ "$DEBUILD_VERSION" != '' ]; then
+	TOP_DIR="$PWD"
+else
+	TOP_DIR=`dirname $PWD`
+fi
+MODS_DIR=$TOP_DIR/modules
+SRC_DIR=$MODS_DIR/usr/src
+TAR_BALL=$SRC_DIR/$PACKAGE.tar.bz2
+DEB="$TOP_DIR/$DEB_NAME"
+LOG_FILE=$TOP_DIR/$PACKAGE-modules-build-$DEB_VERSION.log
+
+rm -f $LOG_FILE
+dpkg -x $DEB $MODS_DIR
+
+if [ "$hdrs_sw" != '' ]; then
+  MOD_SRCDIR=$SRC_DIR TARBALL=$TAR_BALL $MODASS -u $TOP_DIR -t -i -f $hdrs_sw build $PACKAGE >>$LOG_FILE
+fi
+if [ "$srcs_sw" != '' ]; then
+  MOD_SRCDIR=$SRC_DIR TARBALL=$TAR_BALL $MODASS -u $TOP_DIR -t -i -f $srcs_sw build $PACKAGE >>$LOG_FILE
+fi
+
+ls -l $TOP_DIR/$PACKAGE-modules-*_$DEB_VERSION+*.deb
+echo "$me: Log file: $LOG_FILE"
+pwd >&2

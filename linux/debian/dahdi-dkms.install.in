@@ -1,0 +1,7 @@
+Makefile			usr/src/dahdi-#CVERSION#
+build_tools                     usr/src/dahdi-#CVERSION#
+drivers                         usr/src/dahdi-#CVERSION#
+include                         usr/src/dahdi-#CVERSION#
+debian/dkms.conf        	usr/src/dahdi-#CVERSION#
+.version	        	usr/src/dahdi-#CVERSION#
+debian/dahdi-dkms.metainfo.xml  usr/share/metainfo/
