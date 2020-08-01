@@ -15,7 +15,7 @@ CVERSION = DEB_VERSION
 
 ## MODULE-ASSISTANT STUFF
 # prefix of the target package name
-PREFIX:=dahdi
+PREFIX:=asl-dahdi
 SKPG:=$(PREFIX)-source
 PACKAGE:=$(PREFIX)-modules
 PACKAGE_SRC:=$(PREFIX)-linux
