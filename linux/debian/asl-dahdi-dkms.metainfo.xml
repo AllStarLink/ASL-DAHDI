@@ -3,7 +3,7 @@
   <id>org.asterisk.dahdi.dkms</id>
   <metadata_license>GPL-2+</metadata_license>
   <project_license>GPL-2+</project_license>
-  <name>dahdi-dkms</name>
+  <name>asl-dahdi-dkms</name>
   <summary>AHDI telephony interface (dkms kernel driver)</summary>
   <description>
     <p>

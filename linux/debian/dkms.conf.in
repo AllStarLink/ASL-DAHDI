@@ -1,7 +1,7 @@
 PACKAGE_VERSION="#CVERSION#"
 
 # Items below here should not have to change with each driver version
-PACKAGE_NAME="dahdi"
+PACKAGE_NAME="asl-dahdi"
 MAKE[0]="(make modules KVERS=$kernelver MODULES_EXTRA=''; make KVERS=$kernelver; make KVERS=$kernelver firmware-loaders; echo : > drivers/dahdi/vpmadt032_loader/.vpmadt032_x86_32.o.cmd; echo : > drivers/dahdi/vpmadt032_loader/.vpmadt032_x86_64.o.cmd; make KVERS=$kernelver)"
 #Do not make clean, because Sangoma drivers need Module.symvers
 CLEAN="/bin/true"

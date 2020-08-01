@@ -1,0 +1,7 @@
+Makefile			usr/src/asl-dahdi-#CVERSION#
+build_tools                     usr/src/asl-dahdi-#CVERSION#
+drivers                         usr/src/asl-dahdi-#CVERSION#
+include                         usr/src/asl-dahdi-#CVERSION#
+debian/dkms.conf        	usr/src/asl-dahdi-#CVERSION#
+.version	        	usr/src/asl-dahdi-#CVERSION#
+debian/asl-dahdi-dkms.metainfo.xml  usr/share/metainfo/

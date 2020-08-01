@@ -69,14 +69,14 @@ override_dh_auto_build:
 	sed -e "s|#CVERSION#|$(CVERSION)|"				 \
 		debian/dkms.conf.in > debian/dkms.conf
 	sed -e "s|#CVERSION#|$(CVERSION)|"				 \
-		debian/dahdi-dkms.install.in > debian/dahdi-dkms.install
+		debian/asl-dahdi-dkms.install.in > debian/asl-dahdi-dkms.install
 
 	$(MAKE) docs
 	$(MAKE) $(GENERATED_SOURCES)
 
 override_dh_auto_clean:
 	# Delete the generated dkms files
-	rm -f debian/dahdi-dkms.install
+	rm -f debian/asl-dahdi-dkms.install
 	rm -f debian/dkms.conf
 	rm -f $(GENERATED_SOURCES)
 	rm -f dahdi/include/version.h

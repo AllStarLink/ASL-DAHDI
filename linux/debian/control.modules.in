@@ -1,4 +1,4 @@
-Source: dahdi-linux
+Source: asl-dahdi-linux
 Section: comm
 Priority: extra
 Maintainer: Debian VoIP Team <pkg-voip-maintainers@lists.alioth.debian.org>
@@ -9,13 +9,13 @@ Homepage: http://www.asterisk.org/
 Vcs-Git: https://anonscm.debian.org/git/pkg-voip/dahdi-linux.git
 Vcs-Browser: https://anonscm.debian.org/cgit/pkg-voip/dahdi-linux.git
 
-Package: dahdi-modules-_KVERS_
+Package: asl-dahdi-modules-_KVERS_
 Architecture: any
 Multi-Arch: same
-Provides: dahdi-modules
+Provides: asl-dahdi-modules
 Depends: linux-image-_KVERS_
-Replaces: zaptel-modules-_KVERS_
-Conflicts: zaptel-modules-_KVERS_
+Replaces: zaptel-modules-_KVERS_ dahdi-modules-_KVERS_
+Conflicts: zaptel-modules-_KVERS_ dahdi-modules-_KVERS_
 Description: DAHDI modules for Linux (kernel _KVERS_)
  DAHDI (formly Zaptel) is an interface for telephony devices used by e.g. 
  the Asterisk PBX software. The dahdi-* packages provide the kernel 
