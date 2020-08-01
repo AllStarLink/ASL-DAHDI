@@ -1,0 +1,22 @@
+Author: Tzafrir Cohen <tzafrir.cohen@xorcom.com>
+Description: Remove the useless utility dahdi_speed
+
+It was useful long ago, but pointless now.
+
+diff --git a/Makefile.am b/Makefile.am
+index d43ce91..09e4f12 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -35,11 +35,11 @@ sbin_PROGRAMS	= \
+ 	dahdi_maint \
+ 	dahdi_monitor \
+ 	dahdi_cfg \
+-	dahdi_speed \
+ 	dahdi_scan \
+ 	fxotune
+ 
+ noinst_PROGRAMS	= \
++	dahdi_speed \
+ 	fxstest \
+ 	patgen \
+ 	pattest \

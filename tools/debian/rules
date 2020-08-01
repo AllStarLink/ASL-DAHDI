@@ -1,0 +1,55 @@
+#!/usr/bin/make -f
+# Sample debian/rules that uses debhelper.
+# GNU copyright 1997 to 1999 by Joey Hess.
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+ifneq (,$(findstring debug,$(DEB_BUILD_OPTIONS)))
+	CFLAGS += -g
+endif
+
+CHANGED_FILES_LIST = debian/savedfiles.lst
+CHANGED_FILES_ARCHIVE = debian/savedfiles.cpio
+
+%:
+	dh $@ --with autoreconf
+
+override_dh_autoreconf:
+	if [ ! -f "$(CHANGED_FILES_ARCHIVE)" -a -f Makefile.in ]; then \
+	  cpio -o < $(CHANGED_FILES_LIST) > $(CHANGED_FILES_ARCHIVE); \
+	fi
+	dh_autoreconf
+
+override_dh_autoreconf_clean:
+	dh_autoreconf_clean
+	if [ -f "$(CHANGED_FILES_ARCHIVE)" ]; then \
+	  cpio -idu < $(CHANGED_FILES_ARCHIVE) && \
+	  rm -f $(CHANGED_FILES_ARCHIVE); \
+	fi
+
+# An ugly workaround because those files are included in the tarball
+override_dh_clean:
+	dh_clean -X autom4te.cache
+
+
+override_dh_auto_build:
+	$(MAKE) all docs
+	cat dahdi.rules xpp/xpp.rules >debian/dahdi.udev
+
+override_dh_auto_clean:
+ifeq ($(wildcard Makefile),)
+	$(MAKE) -f Makefile.legacy clean
+else
+	$(MAKE) clean
+endif
+
+override_dh_auto_configure:
+	dh_auto_configure
+
+override_dh_auto_install:
+	# also run the 'config' target, in addition to the 'install' target:
+	dh_auto_install -- config
+	rm $(CURDIR)/debian/tmp/usr/share/dahdi/span_config.d/50-asterisk

@@ -1,0 +1,12 @@
+*debhelper*
+*.substvars
+.debhelper/
+autoreconf.after
+autoreconf.before
+dahdi.udev
+dahdi/
+files
+libtonezone-dev/
+libtonezone2.0/
+savedfiles.cpio
+tmp/

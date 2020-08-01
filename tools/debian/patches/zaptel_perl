@@ -1,0 +1,39 @@
+Subject: Set perl installation path to vendorlib
+Author: Tzafrir Cohen <tzafrir.cohen@xorcom.com>
+Forwarded: no
+
+Point DAHDI PERL modules to the right directory under which to install
+perl modules.
+
+(sitelib in Debian is under /usr/local. We don't want to install there)
+
+Debian-specific configuration.
+
+--- a/configure.ac
++++ b/configure.ac
+@@ -120,20 +120,22 @@ fi
+ #    - The "$datadir/perl5" directory otherwise (e.g: during "make distcheck")
+ #
+ AC_MSG_CHECKING(for perl libdir)
++set -x
+ m4_define([_PERL_LIBDIR_DEFAULT], [${datadir}/perl5])dnl
+ AC_ARG_WITH(perllib,
+ 	[AS_HELP_STRING([--with-perllib=PATH],
+-		[Location of perl modules @<:@default=]_PERL_LIBDIR_DEFAULT[, or perl -V:sitelib@:>@])],
++		[Location of perl modules @<:@default=]_PERL_LIBDIR_DEFAULT[, or perl -V:vendorlib@:>@])],
+ 	[perllibdir=$withval],
+ 	[
+ 		if test "$prefix" = 'NONE' -o "$prefix" = '/usr'; then
+-			eval `"$PERL" -V:sitelib`
+-			perllibdir="$sitelib"
++			eval `"$PERL" -V:vendorlib`
++			perllibdir="$vendorlib"
+ 		else
+ 			perllibdir='_PERL_LIBDIR_DEFAULT'
+ 		fi
+ 	]
+ )
++set +x
+ AC_SUBST([perllibdir], "$perllibdir")
+ AC_MSG_RESULT([$perllibdir])
+ AM_CONDITIONAL([PERL], [test "$perllibdir" != ''])

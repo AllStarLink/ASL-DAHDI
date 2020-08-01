@@ -1,0 +1,9 @@
+The packaging is based on the upstream git repository.  However, the
+upstream release tarballs are different.
+
+* We use pristine-tar.
+* We manually clean some generated files at build time (we re-create
+  them anyway).
+
+Before building a new release, be sure to download the tarball and
+commit it with pristine-tar.

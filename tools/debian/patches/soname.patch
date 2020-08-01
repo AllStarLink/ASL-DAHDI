@@ -1,0 +1,17 @@
+From: Tzafrir Cohen <tzafrir@debian.org>
+Subject: add extra digit to library SO name: 2.0
+
+Asterisk and various other programs were already looking for that SO
+name.
+
+diff --git a/configure.ac b/configure.ac
+index 826a7ec..2afe476 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -392,5 +392,6 @@ AC_CONFIG_FILES([
+ 	xpp/perl_modules/Makefile
+ 	])
+ AC_OUTPUT
++sed -i -e '/^soname_spec=/s/major/&.\\$revision/' libtool
+ 
+ AC_MSG_NOTICE(*** dahdi-tools build successfully configured ***)

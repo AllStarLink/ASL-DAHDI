@@ -1,0 +1,14 @@
+Index: dahdi-tools/xpp/astribank_is_starting.8
+===================================================================
+--- dahdi-tools.orig/xpp/astribank_is_starting.8	2019-03-03 23:44:05.883016682 +0200
++++ dahdi-tools/xpp/astribank_is_starting.8	2019-03-04 01:34:40.398114773 +0200
+@@ -85,7 +85,7 @@
+ .SH BUGS
+ Option ordering matter. The \fB\-v\fR and \fB\-d\fR options should precede
+ the actions (\fB\-a\fR, \fB\-r\fR and \fB\-w\fR).
+-The \fB\-t\fItimeout\fR option should preceed the \fB\-w\fR option.
++The \fB\-t\fItimeout\fR option should precede the \fB\-w\fR option.
+ 
+ .SH SEE ALSO
+ semctl(3)
+
