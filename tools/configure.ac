@@ -120,20 +120,22 @@ fi
 #    - The "$datadir/perl5" directory otherwise (e.g: during "make distcheck")
 #
 AC_MSG_CHECKING(for perl libdir)
+set -x
 m4_define([_PERL_LIBDIR_DEFAULT], [${datadir}/perl5])dnl
 AC_ARG_WITH(perllib,
 	[AS_HELP_STRING([--with-perllib=PATH],
-		[Location of perl modules @<:@default=]_PERL_LIBDIR_DEFAULT[, or perl -V:sitelib@:>@])],
+		[Location of perl modules @<:@default=]_PERL_LIBDIR_DEFAULT[, or perl -V:vendorlib@:>@])],
 	[perllibdir=$withval],
 	[
 		if test "$prefix" = 'NONE' -o "$prefix" = '/usr'; then
-			eval `"$PERL" -V:sitelib`
-			perllibdir="$sitelib"
+			eval `"$PERL" -V:vendorlib`
+			perllibdir="$vendorlib"
 		else
 			perllibdir='_PERL_LIBDIR_DEFAULT'
 		fi
 	]
 )
+set +x
 AC_SUBST([perllibdir], "$perllibdir")
 AC_MSG_RESULT([$perllibdir])
 AM_CONDITIONAL([PERL], [test "$perllibdir" != ''])
@@ -392,5 +394,6 @@ AC_CONFIG_FILES([
 	xpp/perl_modules/Makefile
 	])
 AC_OUTPUT
+sed -i -e '/^soname_spec=/s/major/&.\\$revision/' libtool
 
 AC_MSG_NOTICE(*** dahdi-tools build successfully configured ***)

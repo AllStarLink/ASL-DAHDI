@@ -35,11 +35,11 @@ sbin_PROGRAMS	= \
 	dahdi_maint \
 	dahdi_monitor \
 	dahdi_cfg \
-	dahdi_speed \
 	dahdi_scan \
 	fxotune
 
 noinst_PROGRAMS	= \
+	dahdi_speed \
 	fxstest \
 	patgen \
 	pattest \

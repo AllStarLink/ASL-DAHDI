@@ -74,10 +74,10 @@ am__make_running_with_option = \
   test $$has_opt = yes
 am__make_dryrun = (target_option=n; $(am__make_running_with_option))
 am__make_keepgoing = (target_option=k; $(am__make_running_with_option))
-pkgdatadir = $(datadir)/dahdi-tools
-pkgincludedir = $(includedir)/dahdi-tools
-pkglibdir = $(libdir)/dahdi-tools
-pkglibexecdir = $(libexecdir)/dahdi-tools
+pkgdatadir = $(datadir)/asl-dahdi-tools
+pkgincludedir = $(includedir)/asl-dahdi-tools
+pkglibdir = $(libdir)/asl-dahdi-tools
+pkglibexecdir = $(libexecdir)/asl-dahdi-tools
 am__cd = CDPATH="$${ZSH_VERSION+.}$(PATH_SEPARATOR)" && cd
 install_sh_DATA = $(install_sh) -c -m 644
 install_sh_PROGRAM = $(install_sh) -c
@@ -103,12 +103,12 @@ host_triplet = x86_64-pc-linux-gnu
 
 #am__append_2 = ppp
 sbin_PROGRAMS = dahdi_test$(EXEEXT) dahdi_maint$(EXEEXT) \
-	dahdi_monitor$(EXEEXT) dahdi_cfg$(EXEEXT) dahdi_speed$(EXEEXT) \
-	dahdi_scan$(EXEEXT) fxotune$(EXEEXT) $(am__EXEEXT_3) \
-	$(am__EXEEXT_4)
-noinst_PROGRAMS = fxstest$(EXEEXT) patgen$(EXEEXT) pattest$(EXEEXT) \
-	patlooptest$(EXEEXT) dahdi_diag$(EXEEXT) timertest$(EXEEXT) \
-	$(am__EXEEXT_1) $(am__EXEEXT_2)
+	dahdi_monitor$(EXEEXT) dahdi_cfg$(EXEEXT) dahdi_scan$(EXEEXT) \
+	fxotune$(EXEEXT) $(am__EXEEXT_3) $(am__EXEEXT_4)
+noinst_PROGRAMS = dahdi_speed$(EXEEXT) fxstest$(EXEEXT) \
+	patgen$(EXEEXT) pattest$(EXEEXT) patlooptest$(EXEEXT) \
+	dahdi_diag$(EXEEXT) timertest$(EXEEXT) $(am__EXEEXT_1) \
+	$(am__EXEEXT_2)
 am__append_3 = sethdlc
 am__append_4 = hdlcstress hdlctest hdlcgen hdlcverify
 #am__append_5 = dahdi_pcap
@@ -404,14 +404,14 @@ distuninstallcheck_listfiles = find . -type f -print
 am__distuninstallcheck_listfiles = $(distuninstallcheck_listfiles) \
   | sed 's|^\./|$(prefix)/|' | grep -v '$(infodir)/dir$$'
 distcleancheck_listfiles = find . -type f -print
-ACLOCAL = ${SHELL} /root/dahdi-tools/auxdir/missing aclocal-1.16
+ACLOCAL = ${SHELL} /root/ASL-DAHDI/tools/auxdir/missing aclocal-1.16
 AMTAR = $${TAR-tar}
 AM_DEFAULT_VERBOSITY = 0
 AR = ar
 ASCIIDOC = asciidoc
-AUTOCONF = ${SHELL} /root/dahdi-tools/auxdir/missing autoconf
-AUTOHEADER = ${SHELL} /root/dahdi-tools/auxdir/missing autoheader
-AUTOMAKE = ${SHELL} /root/dahdi-tools/auxdir/missing automake-1.16
+AUTOCONF = ${SHELL} /root/ASL-DAHDI/tools/auxdir/missing autoconf
+AUTOHEADER = ${SHELL} /root/ASL-DAHDI/tools/auxdir/missing autoheader
+AUTOMAKE = ${SHELL} /root/ASL-DAHDI/tools/auxdir/missing automake-1.16
 AWK = gawk
 BDFARCH = 
 BDFNAME = 
@@ -466,7 +466,7 @@ LN = /usr/bin/ln
 LN_S = ln -s
 LTLIBOBJS = 
 LT_SYS_LIBRARY_PATH = 
-MAKEINFO = ${SHELL} /root/dahdi-tools/auxdir/missing makeinfo
+MAKEINFO = ${SHELL} /root/ASL-DAHDI/tools/auxdir/missing makeinfo
 MANIFEST_TOOL = :
 MKDIR_P = /usr/bin/mkdir -p
 NEWT_DIR = 
@@ -479,11 +479,11 @@ OBJEXT = o
 OCTASIC_CFLAGS = -I$(top_srcdir)/xpp/oct612x/include -I$(top_srcdir)/xpp/oct612x/octdeviceapi -I$(top_srcdir)/xpp/oct612x/octdeviceapi/oct6100api
 OTOOL = 
 OTOOL64 = 
-PACKAGE = dahdi-tools
+PACKAGE = asl-dahdi-tools
 PACKAGE_BUGREPORT = www.asterisk.org
-PACKAGE_NAME = dahdi-tools
-PACKAGE_STRING = dahdi-tools 3.0.0
-PACKAGE_TARNAME = dahdi-tools
+PACKAGE_NAME = asl-dahdi-tools
+PACKAGE_STRING = asl-dahdi-tools 3.0.0
+PACKAGE_TARNAME = asl-dahdi-tools
 PACKAGE_URL = 
 PACKAGE_VERSION = 3.0.0
 PATH_SEPARATOR = :
@@ -514,10 +514,10 @@ USE_OCTASIC = yes
 USE_SELINUX = no
 VERSION = 3.0.0
 WGET = /usr/bin/wget
-abs_builddir = /root/dahdi-tools
-abs_srcdir = /root/dahdi-tools
-abs_top_builddir = /root/dahdi-tools
-abs_top_srcdir = /root/dahdi-tools
+abs_builddir = /root/ASL-DAHDI/tools
+abs_srcdir = /root/ASL-DAHDI/tools
+abs_top_builddir = /root/ASL-DAHDI/tools
+abs_top_srcdir = /root/ASL-DAHDI/tools
 ac_ct_AR = ar
 ac_ct_CC = gcc
 ac_ct_CXX = g++
@@ -549,7 +549,7 @@ host_vendor = pc
 htmldir = ${docdir}
 includedir = ${prefix}/include
 infodir = ${datarootdir}/info
-install_sh = ${SHELL} /root/dahdi-tools/auxdir/install-sh
+install_sh = ${SHELL} /root/ASL-DAHDI/tools/auxdir/install-sh
 libdir = ${exec_prefix}/lib
 libexecdir = ${exec_prefix}/libexec
 localedir = ${datarootdir}/locale
@@ -558,7 +558,7 @@ mandir = ${datarootdir}/man
 mkdir_p = $(MKDIR_P)
 oldincludedir = /usr/include
 pdfdir = ${docdir}
-perllibdir = /usr/local/share/perl/5.28.1
+perllibdir = /usr/share/perl5
 prefix = /usr
 program_transform_name = s,x,x,
 psdir = ${docdir}
