@@ -70,10 +70,10 @@ am__make_running_with_option = \
   test $$has_opt = yes
 am__make_dryrun = (target_option=n; $(am__make_running_with_option))
 am__make_keepgoing = (target_option=k; $(am__make_running_with_option))
-pkgdatadir = $(datadir)/asl-dahdi-tools
-pkgincludedir = $(includedir)/asl-dahdi-tools
-pkglibdir = $(libdir)/asl-dahdi-tools
-pkglibexecdir = $(libexecdir)/asl-dahdi-tools
+pkgdatadir = $(datadir)/dahdi-tools
+pkgincludedir = $(includedir)/dahdi-tools
+pkglibdir = $(libdir)/dahdi-tools
+pkglibexecdir = $(libexecdir)/dahdi-tools
 am__cd = CDPATH="$${ZSH_VERSION+.}$(PATH_SEPARATOR)" && cd
 install_sh_DATA = $(install_sh) -c -m 644
 install_sh_PROGRAM = $(install_sh) -c
@@ -205,7 +205,7 @@ am__DIST_COMMON = $(srcdir)/Makefile.in $(top_srcdir)/auxdir/depcomp
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 ACLOCAL = ${SHELL} /root/ASL-DAHDI/tools/auxdir/missing aclocal-1.16
 AMTAR = $${TAR-tar}
-AM_DEFAULT_VERBOSITY = 0
+AM_DEFAULT_VERBOSITY = 1
 AR = ar
 ASCIIDOC = asciidoc
 AUTOCONF = ${SHELL} /root/ASL-DAHDI/tools/auxdir/missing autoconf
@@ -216,14 +216,14 @@ BDFARCH =
 BDFNAME = 
 BUILD_VERSION = 3.0.0
 CC = gcc
-CCDEPMODE = depmode=gcc3
-CFLAGS = -g -O2
+CCDEPMODE = depmode=none
+CFLAGS = -g -O2 -fdebug-prefix-map=/root/ASL-DAHDI/tools=. -fstack-protector-strong -Wformat -Werror=format-security
 CPP = gcc -E
-CPPFLAGS = 
+CPPFLAGS = -Wdate-time -D_FORTIFY_SOURCE=2
 CXX = g++
 CXXCPP = g++ -E
-CXXDEPMODE = depmode=gcc3
-CXXFLAGS = -g -O2
+CXXDEPMODE = depmode=none
+CXXFLAGS = -g -O2 -fdebug-prefix-map=/root/ASL-DAHDI/tools=. -fstack-protector-strong -Wformat -Werror=format-security
 CYGPATH_W = echo
 DAHDI_DECLARATION_AFTER_STATEMENT = -Wdeclaration-after-statement
 DAHDI_DEVMODE = 
@@ -252,7 +252,7 @@ INSTALL_PROGRAM = ${INSTALL}
 INSTALL_SCRIPT = ${INSTALL}
 INSTALL_STRIP_PROGRAM = $(install_sh) -c -s
 LD = ld -m elf_x86_64
-LDFLAGS = 
+LDFLAGS = -Wl,-z,relro
 LIBOBJS = 
 LIBS = -lpthread -lm 
 LIBTOOL = $(SHELL) $(top_builddir)/libtool
@@ -278,11 +278,11 @@ OBJEXT = o
 OCTASIC_CFLAGS = -I$(top_srcdir)/xpp/oct612x/include -I$(top_srcdir)/xpp/oct612x/octdeviceapi -I$(top_srcdir)/xpp/oct612x/octdeviceapi/oct6100api
 OTOOL = 
 OTOOL64 = 
-PACKAGE = asl-dahdi-tools
+PACKAGE = dahdi-tools
 PACKAGE_BUGREPORT = www.asterisk.org
-PACKAGE_NAME = asl-dahdi-tools
-PACKAGE_STRING = asl-dahdi-tools 3.0.0
-PACKAGE_TARNAME = asl-dahdi-tools
+PACKAGE_NAME = dahdi-tools
+PACKAGE_STRING = dahdi-tools 3.0.0
+PACKAGE_TARNAME = dahdi-tools
 PACKAGE_URL = 
 PACKAGE_VERSION = 3.0.0
 PATH_SEPARATOR = :
@@ -328,7 +328,7 @@ am__tar = $${TAR-tar} chof - "$$tardir"
 am__untar = $${TAR-tar} xf -
 bindir = ${exec_prefix}/bin
 build = x86_64-pc-linux-gnu
-build_alias = 
+build_alias = x86_64-linux-gnu
 build_cpu = x86_64
 build_os = linux-gnu
 build_vendor = pc
@@ -347,13 +347,13 @@ host_os = linux-gnu
 host_vendor = pc
 htmldir = ${docdir}
 includedir = ${prefix}/include
-infodir = ${datarootdir}/info
+infodir = ${prefix}/share/info
 install_sh = ${SHELL} /root/ASL-DAHDI/tools/auxdir/install-sh
-libdir = ${exec_prefix}/lib
-libexecdir = ${exec_prefix}/libexec
+libdir = ${prefix}/lib/x86_64-linux-gnu
+libexecdir = ${prefix}/lib/x86_64-linux-gnu
 localedir = ${datarootdir}/locale
 localstatedir = /var
-mandir = ${datarootdir}/man
+mandir = ${prefix}/share/man
 mkdir_p = $(MKDIR_P)
 oldincludedir = /usr/include
 pdfdir = ${docdir}
@@ -454,7 +454,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-include ./$(DEPDIR)/dahdi_la-dahdi.Plo # am--include-marker
+#include ./$(DEPDIR)/dahdi_la-dahdi.Plo # am--include-marker
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
@@ -463,35 +463,35 @@ $(am__depfiles_remade):
 am--depfiles: $(am__depfiles_remade)
 
 .c.o:
-	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
-	$(COMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ $< &&\
-	$(am__mv) $$depbase.Tpo $$depbase.Po
-#	$(AM_V_CC)source='$<' object='$@' libtool=no \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(AM_V_CC_no)$(COMPILE) -c -o $@ $<
+#	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
+#	$(COMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ $< &&\
+#	$(am__mv) $$depbase.Tpo $$depbase.Po
+#	$(AM_V_CC)source='$<' object='$@' libtool=no 
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) 
+	$(AM_V_CC)$(COMPILE) -c -o $@ $<
 
 .c.obj:
-	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.obj$$||'`;\
-	$(COMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ `$(CYGPATH_W) '$<'` &&\
-	$(am__mv) $$depbase.Tpo $$depbase.Po
-#	$(AM_V_CC)source='$<' object='$@' libtool=no \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(AM_V_CC_no)$(COMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
+#	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.obj$$||'`;\
+#	$(COMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ `$(CYGPATH_W) '$<'` &&\
+#	$(am__mv) $$depbase.Tpo $$depbase.Po
+#	$(AM_V_CC)source='$<' object='$@' libtool=no 
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) 
+	$(AM_V_CC)$(COMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
 
 .c.lo:
-	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.lo$$||'`;\
-	$(LTCOMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ $< &&\
-	$(am__mv) $$depbase.Tpo $$depbase.Plo
-#	$(AM_V_CC)source='$<' object='$@' libtool=yes \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(AM_V_CC_no)$(LTCOMPILE) -c -o $@ $<
+#	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.lo$$||'`;\
+#	$(LTCOMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ $< &&\
+#	$(am__mv) $$depbase.Tpo $$depbase.Plo
+#	$(AM_V_CC)source='$<' object='$@' libtool=yes 
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) 
+	$(AM_V_CC)$(LTCOMPILE) -c -o $@ $<
 
 dahdi_la-dahdi.lo: dahdi.c
-	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dahdi_la_CFLAGS) $(CFLAGS) -MT dahdi_la-dahdi.lo -MD -MP -MF $(DEPDIR)/dahdi_la-dahdi.Tpo -c -o dahdi_la-dahdi.lo `test -f 'dahdi.c' || echo '$(srcdir)/'`dahdi.c
-	$(AM_V_at)$(am__mv) $(DEPDIR)/dahdi_la-dahdi.Tpo $(DEPDIR)/dahdi_la-dahdi.Plo
-#	$(AM_V_CC)source='dahdi.c' object='dahdi_la-dahdi.lo' libtool=yes \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(AM_V_CC_no)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dahdi_la_CFLAGS) $(CFLAGS) -c -o dahdi_la-dahdi.lo `test -f 'dahdi.c' || echo '$(srcdir)/'`dahdi.c
+#	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dahdi_la_CFLAGS) $(CFLAGS) -MT dahdi_la-dahdi.lo -MD -MP -MF $(DEPDIR)/dahdi_la-dahdi.Tpo -c -o dahdi_la-dahdi.lo `test -f 'dahdi.c' || echo '$(srcdir)/'`dahdi.c
+#	$(AM_V_at)$(am__mv) $(DEPDIR)/dahdi_la-dahdi.Tpo $(DEPDIR)/dahdi_la-dahdi.Plo
+#	$(AM_V_CC)source='dahdi.c' object='dahdi_la-dahdi.lo' libtool=yes 
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) 
+	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dahdi_la_CFLAGS) $(CFLAGS) -c -o dahdi_la-dahdi.lo `test -f 'dahdi.c' || echo '$(srcdir)/'`dahdi.c
 
 mostlyclean-libtool:
 	-rm -f *.lo

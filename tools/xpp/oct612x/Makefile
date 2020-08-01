@@ -71,10 +71,10 @@ am__make_running_with_option = \
   test $$has_opt = yes
 am__make_dryrun = (target_option=n; $(am__make_running_with_option))
 am__make_keepgoing = (target_option=k; $(am__make_running_with_option))
-pkgdatadir = $(datadir)/asl-dahdi-tools
-pkgincludedir = $(includedir)/asl-dahdi-tools
-pkglibdir = $(libdir)/asl-dahdi-tools
-pkglibexecdir = $(libexecdir)/asl-dahdi-tools
+pkgdatadir = $(datadir)/dahdi-tools
+pkgincludedir = $(includedir)/dahdi-tools
+pkglibdir = $(libdir)/dahdi-tools
+pkglibexecdir = $(libexecdir)/dahdi-tools
 am__cd = CDPATH="$${ZSH_VERSION+.}$(PATH_SEPARATOR)" && cd
 install_sh_DATA = $(install_sh) -c -m 644
 install_sh_PROGRAM = $(install_sh) -c
@@ -222,7 +222,7 @@ am__DIST_COMMON = $(srcdir)/Makefile.in $(top_srcdir)/auxdir/depcomp
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 ACLOCAL = ${SHELL} /root/ASL-DAHDI/tools/auxdir/missing aclocal-1.16
 AMTAR = $${TAR-tar}
-AM_DEFAULT_VERBOSITY = 0
+AM_DEFAULT_VERBOSITY = 1
 AR = ar
 ASCIIDOC = asciidoc
 AUTOCONF = ${SHELL} /root/ASL-DAHDI/tools/auxdir/missing autoconf
@@ -233,14 +233,14 @@ BDFARCH =
 BDFNAME = 
 BUILD_VERSION = 3.0.0
 CC = gcc
-CCDEPMODE = depmode=gcc3
-CFLAGS = -g -O2
+CCDEPMODE = depmode=none
+CFLAGS = -g -O2 -fdebug-prefix-map=/root/ASL-DAHDI/tools=. -fstack-protector-strong -Wformat -Werror=format-security
 CPP = gcc -E
-CPPFLAGS = 
+CPPFLAGS = -Wdate-time -D_FORTIFY_SOURCE=2
 CXX = g++
 CXXCPP = g++ -E
-CXXDEPMODE = depmode=gcc3
-CXXFLAGS = -g -O2
+CXXDEPMODE = depmode=none
+CXXFLAGS = -g -O2 -fdebug-prefix-map=/root/ASL-DAHDI/tools=. -fstack-protector-strong -Wformat -Werror=format-security
 CYGPATH_W = echo
 DAHDI_DECLARATION_AFTER_STATEMENT = -Wdeclaration-after-statement
 DAHDI_DEVMODE = 
@@ -269,7 +269,7 @@ INSTALL_PROGRAM = ${INSTALL}
 INSTALL_SCRIPT = ${INSTALL}
 INSTALL_STRIP_PROGRAM = $(install_sh) -c -s
 LD = ld -m elf_x86_64
-LDFLAGS = 
+LDFLAGS = -Wl,-z,relro
 LIBOBJS = 
 LIBS = -lpthread -lm 
 LIBTOOL = $(SHELL) $(top_builddir)/libtool
@@ -295,11 +295,11 @@ OBJEXT = o
 OCTASIC_CFLAGS = -I$(top_srcdir)/xpp/oct612x/include -I$(top_srcdir)/xpp/oct612x/octdeviceapi -I$(top_srcdir)/xpp/oct612x/octdeviceapi/oct6100api
 OTOOL = 
 OTOOL64 = 
-PACKAGE = asl-dahdi-tools
+PACKAGE = dahdi-tools
 PACKAGE_BUGREPORT = www.asterisk.org
-PACKAGE_NAME = asl-dahdi-tools
-PACKAGE_STRING = asl-dahdi-tools 3.0.0
-PACKAGE_TARNAME = asl-dahdi-tools
+PACKAGE_NAME = dahdi-tools
+PACKAGE_STRING = dahdi-tools 3.0.0
+PACKAGE_TARNAME = dahdi-tools
 PACKAGE_URL = 
 PACKAGE_VERSION = 3.0.0
 PATH_SEPARATOR = :
@@ -345,7 +345,7 @@ am__tar = $${TAR-tar} chof - "$$tardir"
 am__untar = $${TAR-tar} xf -
 bindir = ${exec_prefix}/bin
 build = x86_64-pc-linux-gnu
-build_alias = 
+build_alias = x86_64-linux-gnu
 build_cpu = x86_64
 build_os = linux-gnu
 build_vendor = pc
@@ -364,13 +364,13 @@ host_os = linux-gnu
 host_vendor = pc
 htmldir = ${docdir}
 includedir = ${prefix}/include
-infodir = ${datarootdir}/info
+infodir = ${prefix}/share/info
 install_sh = ${SHELL} /root/ASL-DAHDI/tools/auxdir/install-sh
-libdir = ${exec_prefix}/lib
-libexecdir = ${exec_prefix}/libexec
+libdir = ${prefix}/lib/x86_64-linux-gnu
+libexecdir = ${prefix}/lib/x86_64-linux-gnu
 localedir = ${datarootdir}/locale
 localstatedir = /var
-mandir = ${datarootdir}/man
+mandir = ${prefix}/share/man
 mkdir_p = $(MKDIR_P)
 oldincludedir = /usr/include
 pdfdir = ${docdir}
@@ -654,27 +654,27 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-include apilib/bt/$(DEPDIR)/liboctasic_la-octapi_bt0.Plo # am--include-marker
-include apilib/largmath/$(DEPDIR)/liboctasic_la-octapi_largmath.Plo # am--include-marker
-include apilib/llman/$(DEPDIR)/liboctasic_la-octapi_llman.Plo # am--include-marker
-include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_adpcm_chan.Plo # am--include-marker
-include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_channel.Plo # am--include-marker
-include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_chip_open.Plo # am--include-marker
-include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_chip_stats.Plo # am--include-marker
-include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_conf_bridge.Plo # am--include-marker
-include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_debug.Plo # am--include-marker
-include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_events.Plo # am--include-marker
-include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_interrupts.Plo # am--include-marker
-include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_memory.Plo # am--include-marker
-include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_miscellaneous.Plo # am--include-marker
-include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_mixer.Plo # am--include-marker
-include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_phasing_tsst.Plo # am--include-marker
-include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_playout_buf.Plo # am--include-marker
-include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_remote_debug.Plo # am--include-marker
-include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_tlv.Plo # am--include-marker
-include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_tone_detection.Plo # am--include-marker
-include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_tsi_cnct.Plo # am--include-marker
-include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_tsst.Plo # am--include-marker
+#include apilib/bt/$(DEPDIR)/liboctasic_la-octapi_bt0.Plo # am--include-marker
+#include apilib/largmath/$(DEPDIR)/liboctasic_la-octapi_largmath.Plo # am--include-marker
+#include apilib/llman/$(DEPDIR)/liboctasic_la-octapi_llman.Plo # am--include-marker
+#include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_adpcm_chan.Plo # am--include-marker
+#include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_channel.Plo # am--include-marker
+#include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_chip_open.Plo # am--include-marker
+#include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_chip_stats.Plo # am--include-marker
+#include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_conf_bridge.Plo # am--include-marker
+#include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_debug.Plo # am--include-marker
+#include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_events.Plo # am--include-marker
+#include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_interrupts.Plo # am--include-marker
+#include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_memory.Plo # am--include-marker
+#include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_miscellaneous.Plo # am--include-marker
+#include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_mixer.Plo # am--include-marker
+#include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_phasing_tsst.Plo # am--include-marker
+#include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_playout_buf.Plo # am--include-marker
+#include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_remote_debug.Plo # am--include-marker
+#include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_tlv.Plo # am--include-marker
+#include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_tone_detection.Plo # am--include-marker
+#include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_tsi_cnct.Plo # am--include-marker
+#include octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_tsst.Plo # am--include-marker
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
@@ -683,175 +683,175 @@ $(am__depfiles_remade):
 am--depfiles: $(am__depfiles_remade)
 
 .c.o:
-	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
-	$(COMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ $< &&\
-	$(am__mv) $$depbase.Tpo $$depbase.Po
-#	$(AM_V_CC)source='$<' object='$@' libtool=no \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(AM_V_CC_no)$(COMPILE) -c -o $@ $<
+#	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
+#	$(COMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ $< &&\
+#	$(am__mv) $$depbase.Tpo $$depbase.Po
+#	$(AM_V_CC)source='$<' object='$@' libtool=no 
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) 
+	$(AM_V_CC)$(COMPILE) -c -o $@ $<
 
 .c.obj:
-	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.obj$$||'`;\
-	$(COMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ `$(CYGPATH_W) '$<'` &&\
-	$(am__mv) $$depbase.Tpo $$depbase.Po
-#	$(AM_V_CC)source='$<' object='$@' libtool=no \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(AM_V_CC_no)$(COMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
+#	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.obj$$||'`;\
+#	$(COMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ `$(CYGPATH_W) '$<'` &&\
+#	$(am__mv) $$depbase.Tpo $$depbase.Po
+#	$(AM_V_CC)source='$<' object='$@' libtool=no 
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) 
+	$(AM_V_CC)$(COMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
 
 .c.lo:
-	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.lo$$||'`;\
-	$(LTCOMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ $< &&\
-	$(am__mv) $$depbase.Tpo $$depbase.Plo
-#	$(AM_V_CC)source='$<' object='$@' libtool=yes \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(AM_V_CC_no)$(LTCOMPILE) -c -o $@ $<
+#	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.lo$$||'`;\
+#	$(LTCOMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ $< &&\
+#	$(am__mv) $$depbase.Tpo $$depbase.Plo
+#	$(AM_V_CC)source='$<' object='$@' libtool=yes 
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) 
+	$(AM_V_CC)$(LTCOMPILE) -c -o $@ $<
 
 octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_adpcm_chan.lo: octdeviceapi/oct6100api/oct6100_api/oct6100_adpcm_chan.c
-	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_adpcm_chan.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_adpcm_chan.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_adpcm_chan.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_adpcm_chan.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_adpcm_chan.c
-	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_adpcm_chan.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_adpcm_chan.Plo
-#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_adpcm_chan.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_adpcm_chan.lo' libtool=yes \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(AM_V_CC_no)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_adpcm_chan.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_adpcm_chan.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_adpcm_chan.c
+#	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_adpcm_chan.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_adpcm_chan.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_adpcm_chan.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_adpcm_chan.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_adpcm_chan.c
+#	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_adpcm_chan.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_adpcm_chan.Plo
+#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_adpcm_chan.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_adpcm_chan.lo' libtool=yes 
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) 
+	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_adpcm_chan.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_adpcm_chan.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_adpcm_chan.c
 
 octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_channel.lo: octdeviceapi/oct6100api/oct6100_api/oct6100_channel.c
-	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_channel.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_channel.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_channel.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_channel.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_channel.c
-	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_channel.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_channel.Plo
-#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_channel.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_channel.lo' libtool=yes \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(AM_V_CC_no)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_channel.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_channel.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_channel.c
+#	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_channel.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_channel.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_channel.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_channel.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_channel.c
+#	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_channel.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_channel.Plo
+#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_channel.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_channel.lo' libtool=yes 
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) 
+	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_channel.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_channel.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_channel.c
 
 octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_chip_open.lo: octdeviceapi/oct6100api/oct6100_api/oct6100_chip_open.c
-	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_chip_open.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_chip_open.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_chip_open.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_chip_open.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_chip_open.c
-	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_chip_open.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_chip_open.Plo
-#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_chip_open.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_chip_open.lo' libtool=yes \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(AM_V_CC_no)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_chip_open.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_chip_open.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_chip_open.c
+#	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_chip_open.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_chip_open.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_chip_open.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_chip_open.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_chip_open.c
+#	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_chip_open.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_chip_open.Plo
+#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_chip_open.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_chip_open.lo' libtool=yes 
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) 
+	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_chip_open.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_chip_open.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_chip_open.c
 
 octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_chip_stats.lo: octdeviceapi/oct6100api/oct6100_api/oct6100_chip_stats.c
-	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_chip_stats.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_chip_stats.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_chip_stats.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_chip_stats.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_chip_stats.c
-	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_chip_stats.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_chip_stats.Plo
-#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_chip_stats.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_chip_stats.lo' libtool=yes \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(AM_V_CC_no)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_chip_stats.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_chip_stats.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_chip_stats.c
+#	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_chip_stats.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_chip_stats.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_chip_stats.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_chip_stats.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_chip_stats.c
+#	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_chip_stats.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_chip_stats.Plo
+#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_chip_stats.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_chip_stats.lo' libtool=yes 
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) 
+	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_chip_stats.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_chip_stats.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_chip_stats.c
 
 octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_conf_bridge.lo: octdeviceapi/oct6100api/oct6100_api/oct6100_conf_bridge.c
-	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_conf_bridge.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_conf_bridge.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_conf_bridge.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_conf_bridge.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_conf_bridge.c
-	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_conf_bridge.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_conf_bridge.Plo
-#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_conf_bridge.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_conf_bridge.lo' libtool=yes \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(AM_V_CC_no)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_conf_bridge.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_conf_bridge.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_conf_bridge.c
+#	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_conf_bridge.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_conf_bridge.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_conf_bridge.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_conf_bridge.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_conf_bridge.c
+#	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_conf_bridge.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_conf_bridge.Plo
+#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_conf_bridge.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_conf_bridge.lo' libtool=yes 
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) 
+	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_conf_bridge.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_conf_bridge.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_conf_bridge.c
 
 octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_debug.lo: octdeviceapi/oct6100api/oct6100_api/oct6100_debug.c
-	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_debug.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_debug.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_debug.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_debug.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_debug.c
-	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_debug.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_debug.Plo
-#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_debug.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_debug.lo' libtool=yes \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(AM_V_CC_no)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_debug.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_debug.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_debug.c
+#	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_debug.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_debug.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_debug.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_debug.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_debug.c
+#	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_debug.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_debug.Plo
+#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_debug.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_debug.lo' libtool=yes 
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) 
+	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_debug.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_debug.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_debug.c
 
 octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_events.lo: octdeviceapi/oct6100api/oct6100_api/oct6100_events.c
-	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_events.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_events.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_events.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_events.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_events.c
-	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_events.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_events.Plo
-#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_events.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_events.lo' libtool=yes \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(AM_V_CC_no)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_events.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_events.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_events.c
+#	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_events.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_events.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_events.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_events.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_events.c
+#	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_events.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_events.Plo
+#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_events.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_events.lo' libtool=yes 
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) 
+	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_events.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_events.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_events.c
 
 octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_interrupts.lo: octdeviceapi/oct6100api/oct6100_api/oct6100_interrupts.c
-	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_interrupts.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_interrupts.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_interrupts.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_interrupts.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_interrupts.c
-	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_interrupts.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_interrupts.Plo
-#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_interrupts.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_interrupts.lo' libtool=yes \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(AM_V_CC_no)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_interrupts.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_interrupts.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_interrupts.c
+#	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_interrupts.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_interrupts.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_interrupts.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_interrupts.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_interrupts.c
+#	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_interrupts.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_interrupts.Plo
+#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_interrupts.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_interrupts.lo' libtool=yes 
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) 
+	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_interrupts.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_interrupts.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_interrupts.c
 
 octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_memory.lo: octdeviceapi/oct6100api/oct6100_api/oct6100_memory.c
-	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_memory.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_memory.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_memory.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_memory.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_memory.c
-	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_memory.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_memory.Plo
-#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_memory.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_memory.lo' libtool=yes \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(AM_V_CC_no)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_memory.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_memory.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_memory.c
+#	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_memory.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_memory.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_memory.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_memory.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_memory.c
+#	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_memory.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_memory.Plo
+#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_memory.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_memory.lo' libtool=yes 
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) 
+	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_memory.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_memory.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_memory.c
 
 octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_miscellaneous.lo: octdeviceapi/oct6100api/oct6100_api/oct6100_miscellaneous.c
-	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_miscellaneous.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_miscellaneous.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_miscellaneous.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_miscellaneous.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_miscellaneous.c
-	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_miscellaneous.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_miscellaneous.Plo
-#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_miscellaneous.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_miscellaneous.lo' libtool=yes \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(AM_V_CC_no)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_miscellaneous.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_miscellaneous.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_miscellaneous.c
+#	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_miscellaneous.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_miscellaneous.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_miscellaneous.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_miscellaneous.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_miscellaneous.c
+#	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_miscellaneous.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_miscellaneous.Plo
+#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_miscellaneous.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_miscellaneous.lo' libtool=yes 
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) 
+	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_miscellaneous.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_miscellaneous.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_miscellaneous.c
 
 octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_mixer.lo: octdeviceapi/oct6100api/oct6100_api/oct6100_mixer.c
-	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_mixer.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_mixer.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_mixer.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_mixer.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_mixer.c
-	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_mixer.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_mixer.Plo
-#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_mixer.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_mixer.lo' libtool=yes \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(AM_V_CC_no)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_mixer.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_mixer.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_mixer.c
+#	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_mixer.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_mixer.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_mixer.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_mixer.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_mixer.c
+#	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_mixer.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_mixer.Plo
+#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_mixer.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_mixer.lo' libtool=yes 
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) 
+	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_mixer.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_mixer.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_mixer.c
 
 octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_phasing_tsst.lo: octdeviceapi/oct6100api/oct6100_api/oct6100_phasing_tsst.c
-	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_phasing_tsst.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_phasing_tsst.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_phasing_tsst.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_phasing_tsst.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_phasing_tsst.c
-	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_phasing_tsst.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_phasing_tsst.Plo
-#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_phasing_tsst.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_phasing_tsst.lo' libtool=yes \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(AM_V_CC_no)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_phasing_tsst.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_phasing_tsst.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_phasing_tsst.c
+#	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_phasing_tsst.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_phasing_tsst.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_phasing_tsst.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_phasing_tsst.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_phasing_tsst.c
+#	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_phasing_tsst.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_phasing_tsst.Plo
+#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_phasing_tsst.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_phasing_tsst.lo' libtool=yes 
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) 
+	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_phasing_tsst.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_phasing_tsst.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_phasing_tsst.c
 
 octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_playout_buf.lo: octdeviceapi/oct6100api/oct6100_api/oct6100_playout_buf.c
-	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_playout_buf.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_playout_buf.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_playout_buf.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_playout_buf.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_playout_buf.c
-	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_playout_buf.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_playout_buf.Plo
-#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_playout_buf.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_playout_buf.lo' libtool=yes \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(AM_V_CC_no)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_playout_buf.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_playout_buf.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_playout_buf.c
+#	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_playout_buf.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_playout_buf.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_playout_buf.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_playout_buf.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_playout_buf.c
+#	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_playout_buf.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_playout_buf.Plo
+#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_playout_buf.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_playout_buf.lo' libtool=yes 
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) 
+	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_playout_buf.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_playout_buf.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_playout_buf.c
 
 octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_remote_debug.lo: octdeviceapi/oct6100api/oct6100_api/oct6100_remote_debug.c
-	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_remote_debug.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_remote_debug.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_remote_debug.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_remote_debug.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_remote_debug.c
-	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_remote_debug.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_remote_debug.Plo
-#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_remote_debug.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_remote_debug.lo' libtool=yes \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(AM_V_CC_no)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_remote_debug.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_remote_debug.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_remote_debug.c
+#	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_remote_debug.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_remote_debug.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_remote_debug.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_remote_debug.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_remote_debug.c
+#	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_remote_debug.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_remote_debug.Plo
+#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_remote_debug.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_remote_debug.lo' libtool=yes 
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) 
+	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_remote_debug.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_remote_debug.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_remote_debug.c
 
 octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tlv.lo: octdeviceapi/oct6100api/oct6100_api/oct6100_tlv.c
-	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tlv.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_tlv.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tlv.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_tlv.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_tlv.c
-	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_tlv.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_tlv.Plo
-#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_tlv.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tlv.lo' libtool=yes \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(AM_V_CC_no)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tlv.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_tlv.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_tlv.c
+#	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tlv.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_tlv.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tlv.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_tlv.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_tlv.c
+#	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_tlv.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_tlv.Plo
+#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_tlv.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tlv.lo' libtool=yes 
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) 
+	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tlv.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_tlv.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_tlv.c
 
 octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tone_detection.lo: octdeviceapi/oct6100api/oct6100_api/oct6100_tone_detection.c
-	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tone_detection.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_tone_detection.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tone_detection.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_tone_detection.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_tone_detection.c
-	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_tone_detection.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_tone_detection.Plo
-#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_tone_detection.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tone_detection.lo' libtool=yes \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(AM_V_CC_no)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tone_detection.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_tone_detection.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_tone_detection.c
+#	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tone_detection.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_tone_detection.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tone_detection.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_tone_detection.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_tone_detection.c
+#	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_tone_detection.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_tone_detection.Plo
+#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_tone_detection.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tone_detection.lo' libtool=yes 
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) 
+	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tone_detection.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_tone_detection.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_tone_detection.c
 
 octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tsi_cnct.lo: octdeviceapi/oct6100api/oct6100_api/oct6100_tsi_cnct.c
-	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tsi_cnct.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_tsi_cnct.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tsi_cnct.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_tsi_cnct.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_tsi_cnct.c
-	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_tsi_cnct.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_tsi_cnct.Plo
-#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_tsi_cnct.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tsi_cnct.lo' libtool=yes \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(AM_V_CC_no)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tsi_cnct.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_tsi_cnct.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_tsi_cnct.c
+#	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tsi_cnct.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_tsi_cnct.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tsi_cnct.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_tsi_cnct.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_tsi_cnct.c
+#	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_tsi_cnct.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_tsi_cnct.Plo
+#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_tsi_cnct.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tsi_cnct.lo' libtool=yes 
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) 
+	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tsi_cnct.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_tsi_cnct.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_tsi_cnct.c
 
 octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tsst.lo: octdeviceapi/oct6100api/oct6100_api/oct6100_tsst.c
-	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tsst.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_tsst.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tsst.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_tsst.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_tsst.c
-	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_tsst.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_tsst.Plo
-#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_tsst.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tsst.lo' libtool=yes \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(AM_V_CC_no)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tsst.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_tsst.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_tsst.c
+#	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tsst.lo -MD -MP -MF octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_tsst.Tpo -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tsst.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_tsst.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_tsst.c
+#	$(AM_V_at)$(am__mv) octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_tsst.Tpo octdeviceapi/oct6100api/oct6100_api/$(DEPDIR)/liboctasic_la-oct6100_tsst.Plo
+#	$(AM_V_CC)source='octdeviceapi/oct6100api/oct6100_api/oct6100_tsst.c' object='octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tsst.lo' libtool=yes 
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) 
+	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o octdeviceapi/oct6100api/oct6100_api/liboctasic_la-oct6100_tsst.lo `test -f 'octdeviceapi/oct6100api/oct6100_api/oct6100_tsst.c' || echo '$(srcdir)/'`octdeviceapi/oct6100api/oct6100_api/oct6100_tsst.c
 
 apilib/bt/liboctasic_la-octapi_bt0.lo: apilib/bt/octapi_bt0.c
-	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT apilib/bt/liboctasic_la-octapi_bt0.lo -MD -MP -MF apilib/bt/$(DEPDIR)/liboctasic_la-octapi_bt0.Tpo -c -o apilib/bt/liboctasic_la-octapi_bt0.lo `test -f 'apilib/bt/octapi_bt0.c' || echo '$(srcdir)/'`apilib/bt/octapi_bt0.c
-	$(AM_V_at)$(am__mv) apilib/bt/$(DEPDIR)/liboctasic_la-octapi_bt0.Tpo apilib/bt/$(DEPDIR)/liboctasic_la-octapi_bt0.Plo
-#	$(AM_V_CC)source='apilib/bt/octapi_bt0.c' object='apilib/bt/liboctasic_la-octapi_bt0.lo' libtool=yes \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(AM_V_CC_no)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o apilib/bt/liboctasic_la-octapi_bt0.lo `test -f 'apilib/bt/octapi_bt0.c' || echo '$(srcdir)/'`apilib/bt/octapi_bt0.c
+#	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT apilib/bt/liboctasic_la-octapi_bt0.lo -MD -MP -MF apilib/bt/$(DEPDIR)/liboctasic_la-octapi_bt0.Tpo -c -o apilib/bt/liboctasic_la-octapi_bt0.lo `test -f 'apilib/bt/octapi_bt0.c' || echo '$(srcdir)/'`apilib/bt/octapi_bt0.c
+#	$(AM_V_at)$(am__mv) apilib/bt/$(DEPDIR)/liboctasic_la-octapi_bt0.Tpo apilib/bt/$(DEPDIR)/liboctasic_la-octapi_bt0.Plo
+#	$(AM_V_CC)source='apilib/bt/octapi_bt0.c' object='apilib/bt/liboctasic_la-octapi_bt0.lo' libtool=yes 
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) 
+	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o apilib/bt/liboctasic_la-octapi_bt0.lo `test -f 'apilib/bt/octapi_bt0.c' || echo '$(srcdir)/'`apilib/bt/octapi_bt0.c
 
 apilib/largmath/liboctasic_la-octapi_largmath.lo: apilib/largmath/octapi_largmath.c
-	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT apilib/largmath/liboctasic_la-octapi_largmath.lo -MD -MP -MF apilib/largmath/$(DEPDIR)/liboctasic_la-octapi_largmath.Tpo -c -o apilib/largmath/liboctasic_la-octapi_largmath.lo `test -f 'apilib/largmath/octapi_largmath.c' || echo '$(srcdir)/'`apilib/largmath/octapi_largmath.c
-	$(AM_V_at)$(am__mv) apilib/largmath/$(DEPDIR)/liboctasic_la-octapi_largmath.Tpo apilib/largmath/$(DEPDIR)/liboctasic_la-octapi_largmath.Plo
-#	$(AM_V_CC)source='apilib/largmath/octapi_largmath.c' object='apilib/largmath/liboctasic_la-octapi_largmath.lo' libtool=yes \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(AM_V_CC_no)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o apilib/largmath/liboctasic_la-octapi_largmath.lo `test -f 'apilib/largmath/octapi_largmath.c' || echo '$(srcdir)/'`apilib/largmath/octapi_largmath.c
+#	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT apilib/largmath/liboctasic_la-octapi_largmath.lo -MD -MP -MF apilib/largmath/$(DEPDIR)/liboctasic_la-octapi_largmath.Tpo -c -o apilib/largmath/liboctasic_la-octapi_largmath.lo `test -f 'apilib/largmath/octapi_largmath.c' || echo '$(srcdir)/'`apilib/largmath/octapi_largmath.c
+#	$(AM_V_at)$(am__mv) apilib/largmath/$(DEPDIR)/liboctasic_la-octapi_largmath.Tpo apilib/largmath/$(DEPDIR)/liboctasic_la-octapi_largmath.Plo
+#	$(AM_V_CC)source='apilib/largmath/octapi_largmath.c' object='apilib/largmath/liboctasic_la-octapi_largmath.lo' libtool=yes 
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) 
+	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o apilib/largmath/liboctasic_la-octapi_largmath.lo `test -f 'apilib/largmath/octapi_largmath.c' || echo '$(srcdir)/'`apilib/largmath/octapi_largmath.c
 
 apilib/llman/liboctasic_la-octapi_llman.lo: apilib/llman/octapi_llman.c
-	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT apilib/llman/liboctasic_la-octapi_llman.lo -MD -MP -MF apilib/llman/$(DEPDIR)/liboctasic_la-octapi_llman.Tpo -c -o apilib/llman/liboctasic_la-octapi_llman.lo `test -f 'apilib/llman/octapi_llman.c' || echo '$(srcdir)/'`apilib/llman/octapi_llman.c
-	$(AM_V_at)$(am__mv) apilib/llman/$(DEPDIR)/liboctasic_la-octapi_llman.Tpo apilib/llman/$(DEPDIR)/liboctasic_la-octapi_llman.Plo
-#	$(AM_V_CC)source='apilib/llman/octapi_llman.c' object='apilib/llman/liboctasic_la-octapi_llman.lo' libtool=yes \
-#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
-#	$(AM_V_CC_no)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o apilib/llman/liboctasic_la-octapi_llman.lo `test -f 'apilib/llman/octapi_llman.c' || echo '$(srcdir)/'`apilib/llman/octapi_llman.c
+#	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -MT apilib/llman/liboctasic_la-octapi_llman.lo -MD -MP -MF apilib/llman/$(DEPDIR)/liboctasic_la-octapi_llman.Tpo -c -o apilib/llman/liboctasic_la-octapi_llman.lo `test -f 'apilib/llman/octapi_llman.c' || echo '$(srcdir)/'`apilib/llman/octapi_llman.c
+#	$(AM_V_at)$(am__mv) apilib/llman/$(DEPDIR)/liboctasic_la-octapi_llman.Tpo apilib/llman/$(DEPDIR)/liboctasic_la-octapi_llman.Plo
+#	$(AM_V_CC)source='apilib/llman/octapi_llman.c' object='apilib/llman/liboctasic_la-octapi_llman.lo' libtool=yes 
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) 
+	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(liboctasic_la_CFLAGS) $(CFLAGS) -c -o apilib/llman/liboctasic_la-octapi_llman.lo `test -f 'apilib/llman/octapi_llman.c' || echo '$(srcdir)/'`apilib/llman/octapi_llman.c
 
 mostlyclean-libtool:
 	-rm -f *.lo

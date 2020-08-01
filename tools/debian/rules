@@ -53,3 +53,7 @@ override_dh_auto_install:
 	# also run the 'config' target, in addition to the 'install' target:
 	dh_auto_install -- config
 	rm $(CURDIR)/debian/tmp/usr/share/dahdi/span_config.d/50-asterisk
+
+override_dh_shlibdeps:
+	dh_shlibdeps
+	sed -i s/[^-]libtonezone2.0/asl-libtonezone2.0/g debian/asl-dahdi.substvars
