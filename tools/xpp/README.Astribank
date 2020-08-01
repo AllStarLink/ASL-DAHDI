@@ -47,9 +47,9 @@ Apart from the standard DAHDI build requirements, you also need:
 
 * *libusb development headers* to build the Astribank firmware tools
   (astribank_tool, astribank_hexload, astribank_allow).
-  This is typically the package libusb-dev on Debian (and derivatives
-  like Ubuntu) or libusb-devel on RedHat (and derivatives like
-  CentOS/Trixbox).
+  This is typically the package libusb-1.0-0-dev on Debian (and
+  derivatives such as Ubuntu) or libusbx-devel on RedHat (and derivatives
+  such as CentOS).
 * *Echo Canceller Module firmware*: If you have an Astribank with an
   echo canceller module, see the following section.
 
@@ -1257,8 +1257,8 @@ Astribanks Synchronization Source
 If there is more than one Astribank on the system, all the Astribanks
 keep their clock in sync. Optionally the Astribanks can synchronize
 their clock to the master DAHDI device (in case it is a different DAHDI
-device). Normally you just use the default init.d script or run
-explicitly:
+device). Normally it would be run automatically from the udev hooks
+run on device plug (handle_device), but you can also run it explicitly:
 
   xpp_sync auto
 
@@ -1487,6 +1487,9 @@ other side.
 
 current. That is: which ones are connected to an active FXS on the
 other side.
+
+===== /sys/bus/astribanks/devices/xbus-NN/NN:M:P/hwid
+Prints <module type>.<module subtype>. Both are small numbers.
 
 ===== /sys/bus/astribanks/devices/xbus-NN/NN:M:P/offhook
 Shows ports that are (1) or are not (0) off-hook. When a channel is

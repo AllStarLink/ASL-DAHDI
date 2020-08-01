@@ -2,29 +2,65 @@
 
 AC_PREREQ(2.59)
  
-m4_define([TOOLSVERSION],
+m4_define([short_version],
           m4_bpatsubst(m4_esyscmd([build_tools/make_version . dahdi/tools]),
                        [\([0-9.]*\)\(\w\|\W\)*],
                        [\1]))
-AC_INIT(dahdi, TOOLSVERSION, www.asterisk.org)
+AC_INIT([dahdi-tools], short_version, [www.asterisk.org])
 
 # check existence of the package
 AC_CONFIG_SRCDIR([dahdi_cfg.c])
+AC_CONFIG_AUX_DIR([auxdir])
+AC_CONFIG_MACRO_DIR([m4])
+AM_INIT_AUTOMAKE([foreign subdir-objects])
+
+build_version=`build_tools/make_version . dahdi/tools`
+AC_SUBST([BUILD_VERSION], "$build_version")
+
+# enable nice build output on automake1.11
+m4_pattern_allow([AM_DEFAULT_VERBOSITY])
+m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])],[AM_DEFAULT_VERBOSITY=1])
+AM_CONDITIONAL([SILENT_RULES], [test "$AM_DEFAULT_VERBOSITY" = '0'])
 
 AC_COPYRIGHT("dahdi-tools")
 AC_REVISION($Revision$)
 
-ac_default_prefix=/usr
-if test ${sysconfdir} = '${prefix}/etc'; then
-   sysconfdir=/etc
-fi
-if test ${mandir} = '${prefix}/man'; then
-   mandir=/usr/share/man
-fi
+# Preserve old defaults if called without --prefix or --prefix=/usr
+#  prefix=/usr
+#  sysconfdir=/etc
 
-if test ${localstatedir} = '${prefix}/var'; then
-     localstatedir=/var
+ac_default_prefix=/usr
+if test "$prefix" = 'NONE' -o "$prefix" = '/usr'; then
+	if test ${sysconfdir} = '${prefix}/etc'; then
+	   sysconfdir=/etc
+	fi
+	if test ${mandir} = '${prefix}/man'; then
+	   mandir=/usr/share/man
+	fi
+
+	if test ${localstatedir} = '${prefix}/var'; then
+	     localstatedir=/var
+	fi
 fi
+AC_SUBST([dahditoolsdir], ['${datadir}/dahdi'])
+AC_SUBST([dahdiincludedir], ['${includedir}/dahdi'])
+
+# Where to install udev rules?
+#  * Our default is $sysconfdir/udev/rules.d:
+#    - This preserve legacy location.
+#    - It doesn't write into modern vendor supplied location (/lib/udev/rules.d)
+#    - It doesn't break "make distcheck" (where everything should be relative
+#      to prefix.
+#  * Packagers are encouraged to use --udevrules=/lib/udev/rules.d
+#
+m4_define([_UDEV_RULES_DIR_DEFAULT], [${sysconfdir}/udev/rules.d])dnl
+AC_ARG_WITH(udevrules,
+	[AS_HELP_STRING([--with-udevrules=PATH],
+		[Location of UDEV rules @<:@default=]_UDEV_RULES_DIR_DEFAULT[@:>@])],
+	[udevrulesdir=$withval],
+	[udevrulesdir=]'_UDEV_RULES_DIR_DEFAULT'
+)
+AC_SUBST([udevrulesdir], "$udevrulesdir")
 
 # specify output header file
 AC_CONFIG_HEADER(autoconfig.h)
@@ -32,15 +68,18 @@ AC_CONFIG_HEADER(autoconfig.h)
 # This needs to be before any macros that use the C compiler
 AC_GNU_SOURCE
 
-AC_CHECK_HEADERS([sys/soundcard.h linux/soundcard.h])
-
 AC_CHECK_TOOL([LD], [ld])
 
 # Checks for programs.
+AC_PROG_CXX
 AC_PROG_CC
 AC_PROG_CPP
+AM_PROG_CC_C_O
 AC_PROG_INSTALL
 AC_PROG_LN_S
+AC_PROG_MAKE_SET
+AC_PROG_AWK
+AC_PROG_LIBTOOL
 AST_CHECK_GNU_MAKE
 
 test_obj=conftest.o
@@ -70,6 +109,35 @@ AC_SUBST(DOWNLOAD)
 
 AC_LANG(C)
 
+AC_PATH_PROG([PERL], [perl])
+if test "$PERL" = ''; then
+	      AC_MSG_ERROR(perl is mandatory)
+fi
+# Where to install perl modules?
+#  * Packagers are encouraged to use the result of "perl -V:vendorlib"
+#  * Our default is:
+#    - The result of "perl -V:sitelib" for our default prefix (/usr)
+#    - The "$datadir/perl5" directory otherwise (e.g: during "make distcheck")
+#
+AC_MSG_CHECKING(for perl libdir)
+m4_define([_PERL_LIBDIR_DEFAULT], [${datadir}/perl5])dnl
+AC_ARG_WITH(perllib,
+	[AS_HELP_STRING([--with-perllib=PATH],
+		[Location of perl modules @<:@default=]_PERL_LIBDIR_DEFAULT[, or perl -V:sitelib@:>@])],
+	[perllibdir=$withval],
+	[
+		if test "$prefix" = 'NONE' -o "$prefix" = '/usr'; then
+			eval `"$PERL" -V:sitelib`
+			perllibdir="$sitelib"
+		else
+			perllibdir='_PERL_LIBDIR_DEFAULT'
+		fi
+	]
+)
+AC_SUBST([perllibdir], "$perllibdir")
+AC_MSG_RESULT([$perllibdir])
+AM_CONDITIONAL([PERL], [test "$perllibdir" != ''])
+
 AC_ARG_ENABLE(dev-mode,
 	[  --enable-dev-mode    Turn on developer mode],
 	[case "${enableval}" in
@@ -78,6 +146,7 @@ AC_ARG_ENABLE(dev-mode,
 	      *) AC_MSG_ERROR(bad value ${enableval} for --enable-dev-mode)  ;;
 	esac])
 AC_SUBST(DAHDI_DEVMODE)
+AM_CONDITIONAL([DAHDI_DEVMODE], [test "$DAHDI_DEVMODE" = 'yes'])
 
 AC_MSG_CHECKING(for -Wdeclaration-after-statement support)
 if $(${CC} -Wdeclaration-after-statement -S -o /dev/null -xc /dev/null > /dev/null 2>&1); then
@@ -89,17 +158,104 @@ else
 fi
 AC_SUBST(DAHDI_DECLARATION_AFTER_STATEMENT)
 
+# Checks for header files.
+AC_CHECK_HEADERS([sys/soundcard.h linux/soundcard.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netinet/in.h stdint.h stdlib.h string.h sys/ioctl.h sys/param.h sys/socket.h sys/time.h syslog.h unistd.h])
+
+# Checks for typedefs, structures, and compiler characteristics.
+AC_C_INLINE
+AC_TYPE_SIZE_T
+AC_TYPE_SSIZE_T
+AC_TYPE_UINT16_T
+AC_TYPE_UINT32_T
+AC_TYPE_UINT8_T
+
+# Checks for libraries.
+AC_CHECK_LIB([m], [cos])
+AC_CHECK_LIB([pthread], [pthread_create])
+
 AST_EXT_LIB_SETUP([DAHDI], [DAHDI], [dahdi])
 AST_EXT_LIB_SETUP([NEWT], [newt], [newt])
 AST_EXT_LIB_SETUP([USB], [usb], [usb])
+AST_EXT_LIB_SETUP([PCAP], [pcap], [pcap])
 
 AST_C_DEFINE_CHECK([DAHDI], [DAHDI_CODE], [dahdi/user.h])
 DAHDI23_DIR="${DAHDI_DIR}"
 AST_C_DEFINE_CHECK([DAHDI23], [DAHDI_CONFIG_NTTE], [dahdi/user.h])
 AST_EXT_LIB_CHECK([NEWT], [newt], [newtBell], [newt.h])
 AST_EXT_LIB_CHECK([USB], [usb], [usb_init], [usb.h])
+AST_EXT_LIB_CHECK([PCAP], [pcap], [pcap_compile], [pcap.h])
+
+saved_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS $DAHDI_INCLUDE"
+AC_CHECK_DECL([DAHDI_TXMIRROR], [DAHDI_TXMIRROR=1], [DAHDI_TXMIRROR=0], [#include <dahdi/user.h>])
+CPPFLAGS="$saved_CPPFLAGS"
+
+AM_CONDITIONAL([PBX_NEWT], [test "$PBX_NEWT" = "1"])
+AM_CONDITIONAL([PBX_PCAP], [test "$PBX_PCAP" = "1" -a "$DAHDI_TXMIRROR" = "1"])
 
 AC_CHECK_FUNCS([semtimedop])
+AC_CHECK_FUNCS([alarm bzero gettimeofday memset pow regcomp select socket strcasecmp strchr strdup strerror strrchr strstr strtol strtoul])
+AC_FUNC_ERROR_AT_LINE
+AC_FUNC_MALLOC
+
+# What the user asked for? libusb/libusbx
+AC_ARG_WITH([libusbx],
+	[AS_HELP_STRING([--without-libusbx], [Disable libusbx @<:@default=check@:>@])],
+	[],
+	[with_libusbx=check])
+AC_ARG_WITH([libusb],
+	[AS_HELP_STRING([--without-libusb], [Disable libusb-0.1 @<:@default=check@:>@])],
+	[],
+	[with_libusb=check])
+
+# LIBUSBX tests
+have_libusbx=
+AS_IF([test "$with_libusbx" != "no"],
+	[PKG_CHECK_MODULES([LIBUSBX], [libusb-1.0],
+		[AC_CHECK_LIB([usb-1.0], [libusb_error_name],
+			[
+				have_libusbx="yes"
+				AC_DEFINE([HAVE_LIBUSBX], [1], [Define to 1 if you have <libusb.h>.])
+				AC_SUBST([PBX_USB], [1])
+			], [
+				if test "$with_libusbx" != "yes"; then
+					AC_MSG_NOTICE([Ignoring old libusb-1.0, trying fallback to old libusb])
+				fi
+			])
+		], [:])
+	], [])
+
+AS_IF([test "$with_libusbx" = "yes" -a "$have_libusbx" = ""],
+	[AC_MSG_ERROR([No libusbx found (--with-libusbx was given)])])
+
+# LIBUSB tests
+have_libusb=
+AS_IF([test "$with_libusb" != "no"],
+	[AS_IF([test "$have_libusbx" != ""],
+		[
+			AS_IF([test "$with_libusbx" = "check"], [
+				AC_MSG_NOTICE([Skipping LIBUSB tests (have good LIBUSBX)])
+				])
+		], [
+			PKG_CHECK_MODULES([LIBUSB], [libusb],
+				[
+					have_libusb="yes"
+					AC_SUBST([PBX_USB], [1])
+				]
+				[AC_DEFINE([HAVE_LIBUSB], [1], [Define to 1 if you have <usb.h>.])],
+				[:]
+				)
+		])
+	], [])
+
+AS_IF([test "$with_libusb" = "yes" -a "$have_libusb" = ""],
+	[AC_MSG_ERROR([No libusb found (--with-libusb was given)])])
+
+AM_CONDITIONAL([LIBUSBX], [test "$have_libusbx" != ""])
+AM_CONDITIONAL([LIBUSB], [test "$have_libusb" != ""])
+AM_CONDITIONAL([PBX_USB], [test "$PBX_USB" = "1"])
+
 
 PBX_HDLC=0
 AC_MSG_CHECKING([for GENERIC_HDLC_VERSION version 4 in linux/hdlc.h])
@@ -138,6 +294,7 @@ if test "x${PBX_HDLC}" != "x1"; then
 fi
 
 AC_SUBST(PBX_HDLC)
+AM_CONDITIONAL([PBX_HDLC], [test "$PBX_HDLC" = "1"])
 
 AC_ARG_WITH(selinux,
 	[AS_HELP_STRING([--with-selinux],
@@ -193,6 +350,9 @@ case "$with_ppp" in
 	;;
 esac
 
+AC_SUBST(PPPD_VERSION)
+AM_CONDITIONAL([PPPD], [test "$PPPD_VERSION" != ''])
+
 if test "x${PBX_DAHDI}" != "x1"; then
    AC_MSG_NOTICE([***])
    AC_MSG_NOTICE([*** Building this package requires DAHDI support. *** ])
@@ -211,7 +371,26 @@ fi
 
 AC_SUBST(PPPD_VERSION)
 
-AC_CONFIG_FILES([makeopts])
+# Taken from octasic-helper
+AC_SUBST([USE_OCTASIC], [yes])
+AM_CONDITIONAL([USE_OCTASIC], [test "$USE_OCTASIC" = 'yes'])
+octasic_dir='$(top_srcdir)/xpp/oct612x'
+AC_SUBST([OCTASIC_CFLAGS], ["-I$octasic_dir/include -I$octasic_dir/octdeviceapi -I$octasic_dir/octdeviceapi/oct6100api"])
+
+AC_SUBST([TOOLSVERSION], m4_esyscmd([build_tools/make_version . dahdi/tools]))
+
+AC_CONFIG_FILES([
+	makeopts
+	version.c
+	Makefile
+	doc/Makefile
+	hotplug/Makefile
+	ppp/Makefile
+	xpp/Makefile
+	xpp/xtalk/Makefile
+	xpp/oct612x/Makefile
+	xpp/perl_modules/Makefile
+	])
 AC_OUTPUT
 
 AC_MSG_NOTICE(*** dahdi-tools build successfully configured ***)
