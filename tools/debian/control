@@ -36,28 +36,22 @@ Description: utilities for using the DAHDI kernel modules
  This package includes userspace utilities required to configure DAHDI
  modules.
 
-Package: asl-libtonezone2.0
+Package: libtonezone2.0
 Section: libs
 Architecture: linux-any
 Multi-Arch: same
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Provides: libtonezone2.0
-Conflicts: libtonezone2.0
-Replaces: libtonezone2.0
 Description: tonezone library (runtime)
  A library for generating tones to be sent through the DAHDI telephony
  interface.
  .
  This package contains the runtime library files.
 
-Package: asl-libtonezone-dev
+Package: libtonezone-dev
 Section: libdevel
 Architecture: linux-any
 Multi-Arch: same
-Depends: asl-libtonezone2.0 (= ${binary:Version}), ${misc:Depends}
-Provides: libtonezone2.0-dev
-Conflicts: libtonezone2.0-dev
-Replaces: libtonezone2.0-dev
+Depends: libtonezone2.0 (= ${binary:Version}), ${misc:Depends}
 Description: tonezone library (development)
  A library for generating tones to be sent through the DAHDI telephony
  interface.
