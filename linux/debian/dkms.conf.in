@@ -1,0 +1,41 @@
+PACKAGE_VERSION="#CVERSION#"
+
+# Items below here should not have to change with each driver version
+PACKAGE_NAME="asl-dahdi"
+MAKE[0]="(make modules KVERS=$kernelver MODULES_EXTRA=''; make KVERS=$kernelver; make KVERS=$kernelver firmware-loaders; echo : > drivers/dahdi/vpmadt032_loader/.vpmadt032_x86_32.o.cmd; echo : > drivers/dahdi/vpmadt032_loader/.vpmadt032_x86_64.o.cmd; make KVERS=$kernelver)"
+#Do not make clean, because Sangoma drivers need Module.symvers
+CLEAN="/bin/true"
+#CLEAN="make KERNVER=$kernelver clean"
+
+#MAKE[0]="make modules KERNVER=$kernelver DOWNLOAD=echo"
+#CLEAN="make KERNVER=$kernelver clean DOWNLOAD=echo"
+
+BUILT_MODULE_NAME[0]="dahdi_dummy"
+BUILT_MODULE_LOCATION[0]="drivers/dahdi/"
+DEST_MODULE_LOCATION[0]="/kernel/drivers/telephony/dahdi"
+
+BUILT_MODULE_NAME[1]="dahdi_dynamic_eth"
+BUILT_MODULE_LOCATION[1]="drivers/dahdi/"
+DEST_MODULE_LOCATION[1]="/kernel/drivers/telephony/dahdi"
+
+BUILT_MODULE_NAME[2]="dahdi_dynamic"
+BUILT_MODULE_LOCATION[2]="drivers/dahdi/"
+DEST_MODULE_LOCATION[2]="/kernel/drivers/telephony/dahdi"
+
+BUILT_MODULE_NAME[3]="dahdi_dynamic_loc"
+BUILT_MODULE_LOCATION[3]="drivers/dahdi/"
+DEST_MODULE_LOCATION[3]="/kernel/drivers/telephony/dahdi"
+
+BUILT_MODULE_NAME[4]="dahdi"
+BUILT_MODULE_LOCATION[4]="drivers/dahdi/"
+DEST_MODULE_LOCATION[4]="/kernel/drivers/telephony/dahdi"
+
+BUILT_MODULE_NAME[5]="dahdi_transcode"
+BUILT_MODULE_LOCATION[5]="drivers/dahdi/"
+DEST_MODULE_LOCATION[5]="/kernel/drivers/telephony/dahdi"
+
+BUILT_MODULE_NAME[6]="pciradio"
+BUILT_MODULE_LOCATION[6]="drivers/dahdi/"
+DEST_MODULE_LOCATION[6]="/kernel/drivers/telephony/dahdi"
+
+AUTOINSTALL=yes

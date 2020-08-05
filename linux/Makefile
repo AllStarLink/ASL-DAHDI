@@ -185,8 +185,8 @@ distclean: dist-clean
 
 dist-clean: clean
 	@rm -f include/dahdi/version.h
-	@$(MAKE) -C drivers/dahdi/firmware dist-clean
-	@rm -f drivers/dahdi/vpmadt032_loader/*.o_shipped
+	#@$(MAKE) -C drivers/dahdi/firmware dist-clean
+	#@rm -f drivers/dahdi/vpmadt032_loader/*.o_shipped
 
 firmware-download:
 	@$(MAKE) -C drivers/dahdi/firmware all

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component>
+  <id>org.asterisk.dahdi.dkms</id>
+  <metadata_license>GPL-2+</metadata_license>
+  <project_license>GPL-2+</project_license>
+  <name>asl-dahdi-dkms</name>
+  <summary>AHDI telephony interface (dkms kernel driver)</summary>
+  <description>
+    <p>
+      DAHDI (formly Zaptel) is an interface for telephony devices used by e.g.
+      the Asterisk PBX software. The dahdi-* packages provide the kernel
+      DAHDI kernel modules and their required setup environment.
+    </p>
+    <p>
+      The dkms package will automatically compile the driver for your current
+      kernel version.
+    </p>
+  </description>
+  <url type="homepage">http://www.asterisk.org/</url>
+  <provides>
+    <modalias>pci:v0000e159d00000001sv*</modalias>
+    <modalias>lkmodule:dahdi</modalias>
+  </provides>
+</component>

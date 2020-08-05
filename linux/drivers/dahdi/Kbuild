@@ -3,54 +3,8 @@ obj-$(DAHDI_BUILD_ALL)$(CONFIG_DAHDI_DUMMY)		+= dahdi_dummy.o
 obj-$(DAHDI_BUILD_ALL)$(CONFIG_DAHDI_DYNAMIC)		+= dahdi_dynamic.o
 obj-$(DAHDI_BUILD_ALL)$(CONFIG_DAHDI_DYNAMIC_LOC)	+= dahdi_dynamic_loc.o
 obj-$(DAHDI_BUILD_ALL)$(CONFIG_DAHDI_DYNAMIC_ETH)	+= dahdi_dynamic_eth.o
-obj-$(DAHDI_BUILD_ALL)$(CONFIG_DAHDI_DYNAMIC_ETHMF)	+= dahdi_dynamic_ethmf.o
 obj-$(DAHDI_BUILD_ALL)$(CONFIG_DAHDI_TRANSCODE)		+= dahdi_transcode.o
-
-HOTPLUG_FIRMWARE := no
-
-ifdef CONFIG_PCI
-obj-$(DAHDI_BUILD_ALL)$(CONFIG_DAHDI_OCT612X)		+= oct612x/
-obj-$(DAHDI_BUILD_ALL)$(CONFIG_DAHDI_WCT4XXP)		+= wct4xxp/
-obj-$(DAHDI_BUILD_ALL)$(CONFIG_DAHDI_WCTC4XXP)		+= wctc4xxp/
-obj-$(DAHDI_BUILD_ALL)$(CONFIG_DAHDI_WCTDM24XXP)	+= wctdm24xxp/
-obj-$(DAHDI_BUILD_ALL)$(CONFIG_DAHDI_WCTE13XP)		+= wcte13xp.o
-
-wcte13xp-objs := wcte13xp-base.o wcxb_spi.o wcxb.o wcxb_flash.o
-CFLAGS_wcte13xp-base.o += -I$(src)/oct612x -I$(src)/oct612x/include -I$(src)/oct612x/octdeviceapi -I$(src)/oct612x/octdeviceapi/oct6100api
-ifeq ($(HOTPLUG_FIRMWARE),yes)
-  CFLAGS_wcte13xp-base.o += -DHOTPLUG_FIRMWARE
-endif
-
-obj-$(DAHDI_BUILD_ALL)$(CONFIG_DAHDI_WCTE43X)		+= wcte43x.o
-
-wcte43x-objs := wcte43x-base.o wcxb_spi.o wcxb.o wcxb_flash.o
-CFLAGS_wcte43x-base.o += -I$(src)/oct612x -I$(src)/oct612x/include -I$(src)/oct612x/octdeviceapi -I$(src)/oct612x/octdeviceapi/oct6100api
-ifeq ($(HOTPLUG_FIRMWARE),yes)
-  CFLAGS_wcte43x-base.o += -DHOTPLUG_FIRMWARE
-endif
-
-obj-$(DAHDI_BUILD_ALL)$(CONFIG_DAHDI_WCAXX)		+= wcaxx.o
-
-wcaxx-objs := wcaxx-base.o wcxb_spi.o wcxb.o wcxb_flash.o
-CFLAGS_wcaxx-base.o += -I$(src)/oct612x/ -I$(src)/oct612x/include -I$(src)/oct612x/octdeviceapi -I$(src)/oct612x/octdeviceapi/oct6100api
-ifeq ($(HOTPLUG_FIRMWARE),yes)
-  CFLAGS_wcaxx-base.o += -DHOTPLUG_FIRMWARE
-endif
-
-obj-$(DAHDI_BUILD_ALL)$(CONFIG_DAHDI_VOICEBUS)		+= voicebus/
-obj-$(DAHDI_BUILD_ALL)$(CONFIG_DAHDI_WCB4XXP)		+= wcb4xxp/
-
-
 obj-$(DAHDI_BUILD_ALL)$(CONFIG_DAHDI_PCIRADIO)		+= pciradio.o
-endif
-
-obj-$(DAHDI_BUILD_ALL)$(CONFIG_DAHDI_XPP)		+= xpp/
-
-obj-$(DAHDI_BUILD_ALL)$(CONFIG_DAHDI_ECHOCAN_JPAH)	+= dahdi_echocan_jpah.o
-obj-$(DAHDI_BUILD_ALL)$(CONFIG_DAHDI_ECHOCAN_STEVE)	+= dahdi_echocan_sec.o
-obj-$(DAHDI_BUILD_ALL)$(CONFIG_DAHDI_ECHOCAN_STEVE2)	+= dahdi_echocan_sec2.o
-obj-$(DAHDI_BUILD_ALL)$(CONFIG_DAHDI_ECHOCAN_KB1)	+= dahdi_echocan_kb1.o
-obj-$(DAHDI_BUILD_ALL)$(CONFIG_DAHDI_ECHOCAN_MG2)	+= dahdi_echocan_mg2.o
 
 obj-m += $(DAHDI_MODULES_EXTRA)
 
@@ -71,19 +25,6 @@ else
 HOTPLUG_FIRMWARE := no
 endif
 export HOTPLUG_FIRMWARE
-endif
-
-# fix typo present in CentOS and RHEL 2.6.9 kernels
-BAD_KERNELS_VERS := 22 34 34.0.1 34.0.2
-BAD_KERNELS := $(foreach ver,$(BAD_KERNELS_VERS),2.6.9-$(ver).EL 2.6.9-$(ver).ELsmp)
-ifneq (,$(filter $(KVERS),$(BAD_KERNELS)))
-EXTRA_CFLAGS+=-Drw_lock_t=rwlock_t
-endif
-
-# A number of Fedora 10 (9 also?) kernels backported hrtimer to 2.6.27
-# as part of an ALSA backport. TODO: Any better way to detect that?
-ifeq (1,$(shell fgrep -q ' hrtimer_set_expires' include/linux/hrtimer.h 2>/dev/null && echo 1))
-EXTRA_CFLAGS+=-DHAVE_HRTIMER_ACCESSORS=1
 endif
 
 ifeq (1,$(shell fgrep -q 'wait_for_completion_timeout' include/linux/completion.h 2>/dev/null && echo 1))

@@ -111,7 +111,7 @@ sub item($$@) {
 			group_lines		=> '0',
 			brint_overlap		=> 'no',
 			bri_sig_style		=> 'bri_ptmp',
-			echo_can		=> 'mg2',
+			echo_can		=> 'oslec',
 			bri_hardhdlc		=> 'auto',
 			pri_connection_type	=> 'PRI',
 			r2_idle_bits		=> '1101',

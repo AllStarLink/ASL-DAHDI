@@ -1,0 +1,4 @@
+hotplug/span_config.d/50-asterisk
+xpp/genconf_parameters
+*.conf.sample
+*.conf

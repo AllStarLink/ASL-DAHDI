@@ -1,0 +1,5 @@
+drivers/dahdi/xpp/xpp.conf	etc/dahdi
+drivers/dahdi/xpp/init_card_*	usr/share/dahdi/
+drivers/dahdi/xpp/XppConfig.pm	usr/share/dahdi/
+dahdi-modules			usr/share/dahdi/
+debian/modules-load.d/dahdi-linux.conf	etc/modules-load.d

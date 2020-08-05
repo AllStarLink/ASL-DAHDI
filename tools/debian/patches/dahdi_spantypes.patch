@@ -1,0 +1,134 @@
+From: Tzafrir Cohen <tzafrir@debian.org>
+Date: Sat, 2 Mar 2019 01:37:51 +0200
+Bug: https://issues.asterisk.org/jira/browse/DAHTOOL-82
+Subject: [PATCH] handle both spantypes and dahdi_spantypes in sysfs
+
+dahdi_span_types and dahdi_span_assignments use information from sysfs.
+As of kernel 4.13, the name of the attribute chnaged. Handle both old
+and new name.
+
+Signed-off-by: Tzafrir Cohen <tzafrir@debian.org>
+---
+ dahdi_span_assignments | 15 ++++++++++++---
+ dahdi_span_types       | 23 ++++++++++++++++++-----
+ 2 files changed, 30 insertions(+), 8 deletions(-)
+
+diff --git a/dahdi_span_assignments b/dahdi_span_assignments
+index 9b4f305..235d61e 100755
+--- a/dahdi_span_assignments
++++ b/dahdi_span_assignments
+@@ -151,6 +151,15 @@ attr_clean() {
+ 	cat "$1" 2>/dev/null | tr -d '\n' | tr '!' '/' | tr -c 'a-zA-Z0-9/:.-' '_'
+ }
+ 
++get_device_spannos() {
++	device=$1
++	sp_file="dahdi_spantype"
++	if [ ! -f "$device/$sp_file" ]; then
++		sp_file="spantype"
++	fi
++	cut -d: -f1 "$device/$sp_file"
++}
++
+ show_devices() {
+ 
+ 	for device in $DEVICES
+@@ -158,7 +167,7 @@ show_devices() {
+ 		devpath=`cd "$device" && pwd -P`
+ 		location='@'`attr_clean "$device/location"`
+ 		hardware_id=`attr_clean "$device/hardware_id"`
+-		for local_spanno in `cut -d: -f1 "$device/spantype"`
++		for local_spanno in `get_device_spannos "$device"`
+ 		do
+ 			span=`grep 2>/dev/null -Hw "$local_spanno" "$device/span-"*"/local_spanno" | \
+ 				sed -e 's,/local_spanno:.*,,' -e 's,.*/,,'`
+@@ -193,7 +202,7 @@ dump_config() {
+ 			id="$devpath"
+ 		fi
+ 		echo "# Device: [$hardware_id] @$location $devpath"
+-		for local_spanno in `cut -d: -f1 "$device/spantype"`
++		for local_spanno in `get_device_spannos "$device"`
+ 		do
+ 			span=`grep 2>/dev/null -Hw "$local_spanno" "$device/span-"*"/local_spanno" | \
+ 				sed -e 's,/local_spanno:.*,,' -e 's,.*/,,'`
+@@ -358,7 +367,7 @@ list_devices() {
+ 		devpath=`cd "$device" && pwd -P`
+ 		location='@'`attr_clean "$device/location"`
+ 		hardware_id=`attr_clean "$device/hardware_id"`
+-		for local_spanno in `cut -d: -f1 "$device/spantype"`
++		for local_spanno in `get_device_spannos "$device"`
+ 		do
+ 			found=`dev_match_conf "$devpath" "$location" "$hardware_id" "$local_spanno"`
+ 			if [ "$wanted" = "unmatched" ]; then
+diff --git a/dahdi_span_types b/dahdi_span_types
+index 5fce110..f44b494 100755
+--- a/dahdi_span_types
++++ b/dahdi_span_types
+@@ -172,6 +172,15 @@ attr_clean() {
+ 	cat "$1" 2>/dev/null | tr -d '\n' | tr '!' '/' | tr -c 'a-zA-Z0-9/:.-' '_'
+ }
+ 
++get_device_spantype_file() {
++	device=$1
++	sp_file="dahdi_spantype"
++	if [ ! -f "$device/$sp_file" ]; then
++		sp_file="spantype"
++	fi
++	echo "$device/$sp_file"
++}
++
+ show_spantypes() {
+ 	echo "# PRI span types (E1/T1/J1)"
+ 	for device in $DEVICES
+@@ -179,7 +188,8 @@ show_spantypes() {
+ 		devpath=`cd "$device" && pwd -P`
+ 		location='@'`attr_clean "$device/location"`
+ 		hardware_id=`attr_clean "$device/hardware_id"`
+-		cat "$device/spantype" | while read st; do
++		sp_file=`get_device_spantype_file "$device"`
++		cat "$sp_file" | while read st; do
+ 			case "$st" in
+ 			*:[ETJ]1)
+ 				printf "%-10s %-20s %-30s %s\n" \
+@@ -192,7 +202,7 @@ show_spantypes() {
+ }
+ 
+ list_pri_spantypes() {
+-	find $DEVICES -follow -maxdepth 1 -name spantype | \
++	find $DEVICES -follow -maxdepth 1 -name spantype -or -name dahdi_spantype | \
+ 		xargs cat | \
+ 		sed -n '/:[ETJ]1$/s/^.*://p' | \
+ 		sort -u | \
+@@ -255,7 +265,8 @@ dump_config() {
+ 			id="$devpath"
+ 		fi
+ 		echo "# Device: [$hardware_id] @$location $devpath"
+-		cat "$device/spantype" | while read st; do
++		sp_file=`get_device_spantype_file "$device"`
++		cat "$sp_file" | while read st; do
+ 			case "$st" in
+ 			*:[ETJ]1)
+ 				if [ "$num_spantypes" -eq 1 ]; then
+@@ -281,7 +292,8 @@ filter_conf() {
+ handle_span() {
+ 	device="$1"
+ 	spantype="$2"
+-	attr_file="$device/spantype"
++	sp_file=`get_device_spantype_file "$device"`
++	attr_file="$sp_file"
+ 	devpath=`cd "$device" && pwd -P`
+ 	devname=`echo "$device" | sed "s,$devbase/,,"`
+ 	location='@'`attr_clean "$device/location"`
+@@ -351,7 +363,8 @@ set_all_devices() {
+ 	for device in $DEVICES
+ 	do
+ 		devname=`echo "$device" | sed "s,$devbase/,,"`
+-		cat "$device/spantype" | while read spantype; do
++		sp_file=`get_device_spantype_file "$device"`
++		cat "$sp_file" | while read spantype; do
+ 			case "$spantype" in
+ 			*:[ETJ]1)
+ 				handle_span "$device" "$spantype"
+-- 
+2.20.1
+

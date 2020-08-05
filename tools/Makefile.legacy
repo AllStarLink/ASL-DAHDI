@@ -1,0 +1,133 @@
+#
+# Makefile for DAHDI tools
+#
+# Copyright (C) 2001-2010 Digium, Inc.
+#
+#
+
+ifeq ($(strip $(foreach var,clean,$(findstring $(var),$(MAKECMDGOALS)))),)
+endif
+
+ifeq ($(strip $(foreach var,clean,$(findstring $(var),$(MAKECMDGOALS)))),)
+ ifneq ($(wildcard makeopts),)
+  include makeopts
+ endif
+endif
+
+CHKCONFIG	:= $(wildcard /sbin/chkconfig)
+UPDATE_RCD	:= $(wildcard /usr/sbin/update-rc.d)
+ifeq (,$(DESTDIR))
+  ifneq (,$(CHKCONFIG))
+    ADD_INITD	:= $(CHKCONFIG) --add dahdi
+  else
+    ifneq (,$(UPDATE_RCD))
+      ADD_INITD	:= $(UPDATE_RCD) dahdi defaults 15 30
+    endif
+  endif
+endif
+
+INITRD_DIR	:= $(firstword $(wildcard $(DESTDIR)/etc/rc.d/init.d $(DESTDIR)/etc/init.d))
+ifneq (,$(INITRD_DIR))
+  INIT_TARGET	:= $(INITRD_DIR)/dahdi
+  COPY_INITD	:= install -D dahdi.init $(INIT_TARGET)
+endif
+
+NETSCR_DIR	:= $(firstword $(wildcard $(DESTDIR)/etc/sysconfig/network-scripts ))
+ifneq (,$(NETSCR_DIR))
+  NETSCR_TARGET	:= $(NETSCR_DIR)/ifup-hdlc
+  COPY_NETSCR	:= install -D ifup-hdlc $(NETSCR_TARGET)
+endif
+
+# sbindir, libdir, includedir and mandir are defined in makeopts
+# (from configure).
+LIB_DIR:=$(libdir)
+
+# All the man pages. Not just installed ones:
+GROFF_PAGES	:= $(wildcard doc/*.8 xpp/*.8)
+GROFF_HTML	:= $(GROFF_PAGES:%=%.html)
+
+GENERATED_DOCS	:= $(GROFF_HTML) README.html README.Astribank.html
+
+all:
+
+tonezones.txt: zonedata.c
+	perl -ne 'next unless (/\.(country|description) = *"([^"]*)/); \
+		print (($$1 eq "country")? "* $$2\t":"$$2\n");' $<  \
+	>$@
+
+%.asciidoc: %.sample
+	perl -n -e \
+		'if (/^#($$|\s)(.*)/){ if (!$$in_doc){print "\n"}; $$in_doc=1; print "$$2\n" } else { if ($$in_doc){print "\n"}; $$in_doc=0; print "  $$_" }' \
+		$< \
+	| perl -p -e 'if (/^  #?(\w+)=/ && ! exists $$cfgs{$$1}){my $$cfg = $$1; $$cfgs{$$cfg} = 1; s/^/\n[[cfg_$$cfg]]\n/}'  >$@
+
+docs: $(GENERATED_DOCS)
+
+genconf_parameters.sample: xpp/genconf_parameters
+	cp $< $@
+
+README.html: README system.conf.asciidoc init.conf.asciidoc tonezones.txt \
+  UPGRADE.txt genconf_parameters.asciidoc assigned-spans.conf.asciidoc \
+  span-types.conf.asciidoc
+	TZ=UTC $(ASCIIDOC) -n -a toc -a toclevels=4 $<
+
+README.Astribank.html: xpp/README.Astribank
+	TZ=UTC $(ASCIIDOC) -o $@ -n -a toc -a toclevels=4 $<
+
+# on Debian: this requires the full groff, not just groff-base.
+%.8.html: %.8
+	man -Thtml $^ >$@
+
+htmlman: $(GROFF_HTML)
+
+install: all install-programs
+	@echo "###################################################"
+	@echo "###"
+	@echo "### DAHDI tools installed successfully."
+	@echo "### If you have not done so before, install init scripts with:"
+	@echo "###"
+	@echo "###   make install-config"
+	@echo "###"
+	@echo "###################################################"
+
+install-programs: install-libs
+
+install-libs:
+ifneq (no,$(USE_SELINUX))
+  ifeq (,$(DESTDIR))
+	/sbin/restorecon -v $(DESTDIR)$(LIB_DIR)/$(LTZ_SO)
+  endif
+endif
+
+config:
+ifneq (,$(COPY_INITD))
+	$(COPY_INITD)
+endif
+ifneq (,$(COPY_NETSCR))
+	$(COPY_NETSCR)
+endif
+ifneq (,$(ADD_INITD))
+	$(ADD_INITD)
+endif
+	@echo "DAHDI has been configured."
+	@echo ""
+	@echo "List of detected DAHDI devices:"
+	@echo ""
+	@if [ `xpp/dahdi_hardware | tee /dev/stderr | wc -l` -eq 0 ]; then \
+		echo "No hardware found"; \
+	else \
+		echo ""; \
+		echo "run 'dahdi_genconf modules' to load support for only " ;\
+		echo "the DAHDI hardware installed in this system.  By "; \
+		echo "default support for all DAHDI hardware is loaded at "; \
+		echo "DAHDI start. "; \
+	fi
+
+clean:
+	rm -f *.o tzdriver
+	rm -f core
+	rm -rf $(GENERATED_DOCS) *.asciidoc tonezones.txt
+
+.PHONY: clean all install devel data config install-programs install-libs
+
+FORCE:

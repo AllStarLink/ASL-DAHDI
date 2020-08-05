@@ -1,0 +1,6 @@
+zaptel_perl
+echocan_oslec
+remove_dahdi_speed
+soname.patch
+dahdi_spantypes.patch
+typos.patch

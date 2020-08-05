@@ -1,0 +1,59 @@
+Source: asl-dahdi-tools
+Section: comm
+Priority: optional
+Maintainer: Adam Paul <adamjpaul@gmail.com>
+Uploaders: Adam Paul <adamjpaul@gmail.com>
+# groff, man-db and asciidoc are required for generating documentation
+Build-Depends: debhelper (>= 10),
+ autoconf,
+ automake,
+ cpio,
+ pkg-config,
+ asl-dahdi-source (>= 1:3.0),
+ libnewt-dev,
+ bzip2,
+ libusb-1.0-0-dev,
+ asciidoc-base | asciidoc,
+ groff,
+ man-db,
+Standards-Version: 4.3.0
+Homepage: http://www.asterisk.org/
+Vcs-Git: https://github.com/ajpaul25/ASL-DAHDI.git
+Vcs-Browser: https://github.com/ajpaul25/ASL-DAHDI
+
+Package: asl-dahdi
+Architecture: linux-any
+Multi-Arch: foreign
+Depends: ${shlibs:Depends}, ${perl:Depends}, ${misc:Depends}, procps, fxload, asl-dahdi-linux, usbutils
+Provides: dahdi
+Conflicts: dahdi
+Replaces: dahdi
+Description: utilities for using the DAHDI kernel modules
+ DAHDI (formly Zaptel) is an interface for telephony devices used by e.g.
+ the Asterisk PBX software. The dahdi-* packages provide the kernel
+ DAHDI kernel modules and their required setup environment.
+ .
+ This package includes userspace utilities required to configure DAHDI
+ modules.
+
+Package: libtonezone2.0
+Section: libs
+Architecture: linux-any
+Multi-Arch: same
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: tonezone library (runtime)
+ A library for generating tones to be sent through the DAHDI telephony
+ interface.
+ .
+ This package contains the runtime library files.
+
+Package: libtonezone-dev
+Section: libdevel
+Architecture: linux-any
+Multi-Arch: same
+Depends: libtonezone2.0 (= ${binary:Version}), ${misc:Depends}
+Description: tonezone library (development)
+ A library for generating tones to be sent through the DAHDI telephony
+ interface.
+ .
+ This package contains the development files.

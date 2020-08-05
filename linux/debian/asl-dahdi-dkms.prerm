@@ -1,0 +1,22 @@
+#!/bin/sh
+
+set -e
+
+# Work around an upgrade from a system with #923983:
+if [ "$1" = "prerm-failed-upgrade" ]; then
+	case "$2" in
+	1:2.11.1.0.20170917~dfsg-[56])
+		# The original prerm script tried in this case
+		# to remove the module that is not there, and failed.
+		# We should not fail:
+		if [ ! "$(dkms status -m dahdi -v $2)" ]; then
+			exit 0
+		fi
+	;;
+	esac
+	# If we got here, there was another reason for the upgrade to
+	# fail. Don't hide it.
+	exit 1
+fi
+
+#DEBHELPER#

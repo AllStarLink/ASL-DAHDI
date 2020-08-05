@@ -1,0 +1,19 @@
+# An example systemd unit to load / unload dynamic DAHDI spans
+# /etc/dahdi/dynamic.conf should only contain dynamic= lines. The
+# rest of the configuration should go into system.ocnf as per usual.
+
+[Unit]
+Description=Dynamic DAHDI devices
+Documentation=man:dahdi_cfg(1) file:/usr/share/doc/dahdi/README.html
+ConditionPathExists=/etc/dahdi/dynamic.conf
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=/sbin/modprobe dahdi
+ExecStop=/usr/sbin/dahdi_span_assignments remove ; \
+	 /usr/sbin/dahdi_cfg -c /etc/dahdi/dynamic.conf -s
+ExecStart=/usr/sbin/dahdi_cfg -c /etc/dahdi/dynamic.conf
+
+[Install]
+WantedBy=sysinit.target
