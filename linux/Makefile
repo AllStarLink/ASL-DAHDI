@@ -53,7 +53,7 @@ INST_HEADERS:=kernel.h user.h fasthdlc.h wctdm_user.h dahdi_config.h
 
 DAHDI_BUILD_ALL:=m
 
-KMAKE=+$(MAKE) -C $(KSRC) SUBDIRS=$(PWD)/drivers/dahdi DAHDI_INCLUDE=$(PWD)/include DAHDI_MODULES_EXTRA="$(DAHDI_MODULES_EXTRA)" HOTPLUG_FIRMWARE=$(HOTPLUG_FIRMWARE)
+KMAKE=+$(MAKE) -C $(KSRC) M=$(PWD)/drivers/dahdi DAHDI_INCLUDE=$(PWD)/include DAHDI_MODULES_EXTRA="$(DAHDI_MODULES_EXTRA)" HOTPLUG_FIRMWARE=$(HOTPLUG_FIRMWARE)
 
 ROOT_PREFIX:=
 
@@ -104,6 +104,7 @@ install-modconf:
 
 install-xpp-firm:
 	$(MAKE) -C drivers/dahdi/xpp/firmwares install
+
 
 install-firmware:
 ifeq ($(HOTPLUG_FIRMWARE),yes)
@@ -190,8 +191,10 @@ dist-clean: clean
 firmware-download:
 	@$(MAKE) -C drivers/dahdi/firmware all
 
+ifneq (,$(wildcard test-script))
 test:
 	./test-script $(DESTDIR)/lib/modules/$(KVERS) dahdi
+endif
 
 docs: $(GENERATED_DOCS)
 

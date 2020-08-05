@@ -191,20 +191,20 @@ static int packet_process(xbus_t *xbus, xpacket_t *pack)
 			}
 			goto out;
 		}
-		xtable = xproto_table(xpd->type);
+		xtable = xproto_table(xpd->xpd_type);
 		if (!xtable) {
 			if (printk_ratelimit())
 				XPD_ERR(xpd,
-					"%s: no protocol table (type=%d)\n",
-					__func__, xpd->type);
+					"%s: no protocol table (xpd_type=%d)\n",
+					__func__, xpd->xpd_type);
 			goto out;
 		}
 		xe = xproto_card_entry(xtable, op);
 		if (!xe) {
 			if (printk_ratelimit()) {
 				XPD_NOTICE(xpd,
-					"%s: bad command (type=%d,opcode=0x%x)\n",
-					__func__, xpd->type, op);
+					"%s: bad command (xpd_type=%d,opcode=0x%x)\n",
+					__func__, xpd->xpd_type, op);
 				dump_packet("packet_process -- bad command",
 					pack, 1);
 			}
@@ -283,9 +283,8 @@ out:
 int xframe_receive(xbus_t *xbus, xframe_t *xframe)
 {
 	int ret = 0;
-	struct timeval now;
-	struct timeval tv_received;
-	int usec;
+	ktime_t kt_received;
+	s64 usec;
 
 	if (XFRAME_LEN(xframe) < RPACKET_HEADERSIZE) {
 		static int rate_limit;
@@ -301,7 +300,7 @@ int xframe_receive(xbus_t *xbus, xframe_t *xframe)
 		XBUS_DBG(GENERAL, xbus, "Dropped xframe. Is shutting down.\n");
 		return -ENODEV;
 	}
-	tv_received = xframe->tv_received;
+	kt_received = xframe->kt_received;
 	/*
 	 * We want to check that xframes do not mix PCM and other commands
 	 */
@@ -315,10 +314,7 @@ int xframe_receive(xbus_t *xbus, xframe_t *xframe)
 		ret = xframe_receive_cmd(xbus, xframe);
 	}
 	/* Calculate total processing time */
-	do_gettimeofday(&now);
-	usec =
-	    (now.tv_sec - tv_received.tv_sec) * 1000000 + now.tv_usec -
-	    tv_received.tv_usec;
+	usec = ktime_us_delta(ktime_get(), kt_received);
 	if (usec > xbus->max_rx_process)
 		xbus->max_rx_process = usec;
 	return ret;
@@ -381,17 +377,36 @@ void dump_reg_cmd(const char msg[], bool writing, xbus_t *xbus,
 	char data_buf[MAX_PROC_WRITE];
 
 	/* The size byte is not included */
-	if (regcmd->bytes > sizeof(*regcmd) - 1) {
+	if (regcmd->h.bytes > sizeof(*regcmd) - 1) {
 		PORT_NOTICE(xbus, unit, port,
 			    "%s: %s: Too long: regcmd->bytes = %d\n", __func__,
-			    msg, regcmd->bytes);
+			    msg, regcmd->h.bytes);
 		return;
 	}
-	if (regcmd->is_multibyte) {
+	if (regcmd->h.bytes == REG_CMD_SIZE(RAM)) {
+		snprintf(port_buf, MAX_PROC_WRITE, "%d%s", regcmd->h.portnum,
+			 (REG_FIELD_RAM(regcmd, all_ports_broadcast)) ? "*" : "");
+		if (REG_FIELD_RAM(regcmd, read_request)) {
+			action = 'R';
+		} else {
+			action = 'W';
+		}
+		PORT_DBG(REGS, xbus, unit, port,
+			"%s: %s %cR %02X %02X %02X %02X %02X %02X\n",
+			msg, port_buf, action,
+			REG_FIELD_RAM(regcmd, addr_low),
+			REG_FIELD_RAM(regcmd, addr_high),
+			REG_FIELD_RAM(regcmd, data_0),
+			REG_FIELD_RAM(regcmd, data_1),
+			REG_FIELD_RAM(regcmd, data_2),
+			REG_FIELD_RAM(regcmd, data_3));
+		return;
+	}
+	if (regcmd->h.is_multibyte) {
 		char buf[MAX_PROC_WRITE + 1];
 		int i;
 		int n = 0;
-		size_t len = regcmd->bytes;
+		size_t len = regcmd->h.bytes;
 		const __u8 *p = REG_XDATA(regcmd);
 
 		buf[0] = '\0';
@@ -401,18 +416,18 @@ void dump_reg_cmd(const char msg[], bool writing, xbus_t *xbus,
 		PORT_DBG(REGS, xbus, unit, port,
 			"UNIT-%d PORT-%d: Multibyte(eoframe=%d) "
 			"%s[0..%zd]: %s%s\n",
-			unit, port, regcmd->eoframe, msg, len - 1, buf,
+			unit, port, regcmd->h.eoframe, msg, len - 1, buf,
 			(n >= MAX_PROC_WRITE) ? "..." : "");
 		return;
 	}
 	/* The size byte is not included */
-	if (regcmd->bytes != sizeof(*regcmd) - 1) {
+	if (regcmd->h.bytes != REG_CMD_SIZE(REG)) {
 		PORT_NOTICE(xbus, unit, port,
 			    "%s: %s: Wrong size: regcmd->bytes = %d\n",
-			    __func__, msg, regcmd->bytes);
+			    __func__, msg, regcmd->h.bytes);
 		return;
 	}
-	snprintf(port_buf, MAX_PROC_WRITE, "%d%s", regcmd->portnum,
+	snprintf(port_buf, MAX_PROC_WRITE, "%d%s", regcmd->h.portnum,
 		 (REG_FIELD(regcmd, all_ports_broadcast)) ? "*" : "");
 	action = (REG_FIELD(regcmd, read_request)) ? 'R' : 'W';
 	modifier = 'D';

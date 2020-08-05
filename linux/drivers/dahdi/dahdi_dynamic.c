@@ -467,7 +467,7 @@ static int _destroy_dynamic(struct dahdi_dynamic_span *dds)
 
 	/* We shouldn't have more than the two references at this point.  If
 	 * we do, there are probably channels that are still opened. */
-	if (atomic_read(&d->kref.refcount) > 2) {
+	if (refcount_read(&d->kref.refcount) > 2) {
 		dynamic_put(d);
 		return -EBUSY;
 	}
@@ -638,8 +638,8 @@ static int _create_dynamic(struct dahdi_dynamic_span *dds)
 		DAHDI_CONFIG_HDB3 | DAHDI_CONFIG_CRC4 | DAHDI_CONFIG_NOTOPEN;
 	d->span.ops = &dynamic_ops;
 	for (x = 0; x < d->span.channels; x++) {
-		sprintf(d->chans[x]->name, "DYN/%s/%s/%d",
-			dds->driver, dds->addr, x+1);
+		snprintf(d->chans[x]->name, sizeof(d->chans[x]->name),
+			 "DYN/%s/%s/%d", dds->driver, dds->addr, x+1);
 		d->chans[x]->sigcap = DAHDI_SIG_EM | DAHDI_SIG_CLEAR |
 				      DAHDI_SIG_FXSLS | DAHDI_SIG_FXSKS |
 				      DAHDI_SIG_FXSGS | DAHDI_SIG_FXOLS |
@@ -831,7 +831,14 @@ EXPORT_SYMBOL(dahdi_dynamic_unregister_driver);
 
 static struct timer_list alarmcheck;
 
-static void check_for_red_alarm(unsigned long ignored)
+/*static void check_for_red_alarm(unsigned long ignored)*/
+static void check_for_red_alarm(
+#ifdef init_timer      /* Compatibility for pre 4.15 interface */
+               unsigned long ignored
+#else
+               struct timer_list *ignored
+#endif
+)
 {
 	int newalarm;
 	int alarmchanged = 0;
@@ -867,10 +874,11 @@ static const struct dahdi_dynamic_ops dahdi_dynamic_ops = {
 static int dahdi_dynamic_init(void)
 {
 	/* Start process to check for RED ALARM */
-	init_timer(&alarmcheck);
-	alarmcheck.expires = 0;
-	alarmcheck.data = 0;
-	alarmcheck.function = check_for_red_alarm;
+	/*init_timer(&alarmcheck);*/
+	/*alarmcheck.expires = 0;*/
+	/*alarmcheck.data = 0;*/
+	/*alarmcheck.function = check_for_red_alarm;*/
+	timer_setup(&alarmcheck, check_for_red_alarm, 0);
 	/* Check once per second */
 	mod_timer(&alarmcheck, jiffies + 1 * HZ);
 #ifdef ENABLE_TASKLETS

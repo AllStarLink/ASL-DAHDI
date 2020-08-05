@@ -103,7 +103,11 @@ int total_registered_spans(void)
 }
 
 #ifdef	CONFIG_PROC_FS
+#ifdef DAHDI_HAVE_PROC_OPS
+static const struct proc_ops xpd_read_proc_ops;
+#else
 static const struct file_operations xpd_read_proc_ops;
+#endif
 #endif
 
 /*------------------------- XPD Management -------------------------*/
@@ -124,7 +128,7 @@ int refcount_xpd(xpd_t *xpd)
 {
 	struct kref *kref = &xpd->kref;
 
-	return atomic_read(&kref->refcount);
+	return refcount_read(&kref->refcount);
 }
 
 xpd_t *get_xpd(const char *msg, xpd_t *xpd)
@@ -216,33 +220,43 @@ EXPORT_SYMBOL(xpd_free);
  * Synchronous part of XPD detection.
  * Called from new_card()
  */
-int create_xpd(xbus_t *xbus, const xproto_table_t *proto_table, int unit,
-	       int subunit, __u8 type, __u8 subtype, int subunits,
-	       int subunit_ports, __u8 port_dir)
+int create_xpd(xbus_t *xbus, const xproto_table_t *proto_table,
+               const struct unit_descriptor *unit_descriptor,
+               int unit,
+	       int subunit, __u8 type)
 {
 	xpd_t *xpd = NULL;
 	bool to_phone;
 
 	BUG_ON(type == XPD_TYPE_NOMODULE);
-	to_phone = BIT(subunit) & port_dir;
+	to_phone = BIT(subunit) & unit_descriptor->port_dir;
 	BUG_ON(!xbus);
 	xpd = xpd_byaddr(xbus, unit, subunit);
 	if (xpd) {
 		XPD_NOTICE(xpd, "XPD at %d%d already exists\n", unit, subunit);
 		return 0;
 	}
-	if (subunit_ports <= 0 || subunit_ports > CHANNELS_PERXPD) {
+	INFO("%s: [%d.%d] type=%d subtype=%d numchips=%d ports_per_chip=%d ports_dir=%d\n",
+		__func__,
+		unit_descriptor->addr.unit,
+		unit_descriptor->addr.subunit,
+		unit_descriptor->type,
+		unit_descriptor->subtype,
+		unit_descriptor->numchips,
+		unit_descriptor->ports_per_chip,
+		unit_descriptor->port_dir);
+	if (unit_descriptor->ports_per_chip <= 0 || unit_descriptor->ports_per_chip > CHANNELS_PERXPD) {
 		XBUS_NOTICE(xbus, "Illegal number of ports %d for XPD %d%d\n",
-			    subunit_ports, unit, subunit);
+			    unit_descriptor->ports_per_chip, unit, subunit);
 		return 0;
 	}
 	xpd =
 	    proto_table->xops->card_new(xbus, unit, subunit, proto_table,
-					subtype, subunits, subunit_ports,
+					unit_descriptor,
 					to_phone);
 	if (!xpd) {
-		XBUS_NOTICE(xbus, "card_new(%d,%d,%d,%d,%d) failed. Ignored.\n",
-			    unit, subunit, proto_table->type, subtype,
+		XBUS_NOTICE(xbus, "card_new(%d,%d,%d,%d) failed. Ignored.\n",
+			    unit, subunit, proto_table->type,
 			    to_phone);
 		return -EINVAL;
 	}
@@ -279,7 +293,8 @@ static int xpd_read_proc_show(struct seq_file *sfile, void *data)
 	seq_printf(sfile, "Address: U=%d S=%d\n", xpd->addr.unit,
 		    xpd->addr.subunit);
 	seq_printf(sfile, "Subunits: %d\n", xpd->subunits);
-	seq_printf(sfile, "Type: %d.%d\n\n", xpd->type, xpd->subtype);
+	seq_printf(sfile, "Type: %d.%d\n", xpd->xpd_type, XPD_HW(xpd).subtype);
+	seq_printf(sfile, "Hardware type: %d.%d\nn", XPD_HW(xpd).type, XPD_HW(xpd).subtype);
 	seq_printf(sfile, "pcm_len=%d\n\n", PHONEDEV(xpd).pcm_len);
 	seq_printf(sfile, "wanted_pcm_mask=0x%04X\n\n",
 		    PHONEDEV(xpd).wanted_pcm_mask);
@@ -381,13 +396,22 @@ static int xpd_read_proc_open(struct inode *inode, struct file *file)
 	return single_open(file, xpd_read_proc_show, PDE_DATA(inode));
 }
 
-static const struct file_operations xpd_read_proc_ops = {
-	.owner		= THIS_MODULE,
-	.open		= xpd_read_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+#ifdef DAHDI_HAVE_PROC_OPS
+static const struct proc_ops xpd_read_proc_ops = {
+	.proc_open		= xpd_read_proc_open,
+	.proc_read		= seq_read,
+	.proc_lseek		= seq_lseek,
+	.proc_release		= single_release,
 };
+#else
+static const struct file_operations xpd_read_proc_ops = {
+	.owner			= THIS_MODULE,
+	.open			= xpd_read_proc_open,
+	.read			= seq_read,
+	.llseek			= seq_lseek,
+	.release		= single_release,
+};
+#endif
 
 #endif
 
@@ -529,8 +553,10 @@ err:
  *
  */
 __must_check xpd_t *xpd_alloc(xbus_t *xbus, int unit, int subunit,
-	int subtype, int subunits, size_t privsize,
-	const xproto_table_t *proto_table, int channels)
+	size_t privsize,
+	const xproto_table_t *proto_table,
+	const struct unit_descriptor *unit_descriptor,
+	int channels)
 {
 	xpd_t *xpd = NULL;
 	size_t alloc_size = sizeof(xpd_t) + privsize;
@@ -554,12 +580,12 @@ __must_check xpd_t *xpd_alloc(xbus_t *xbus, int unit, int subunit,
 	xpd->priv = (__u8 *)xpd + sizeof(xpd_t);
 	spin_lock_init(&xpd->lock);
 	xpd->card_present = 0;
-	xpd->type = proto_table->type;
+	xpd->xpd_type = proto_table->type;
 	xpd->xproto = proto_table;
+	xpd->unit_descriptor = *unit_descriptor;
 	xpd->xops = proto_table->xops;
 	xpd->xpd_state = XPD_STATE_START;
-	xpd->subtype = subtype;
-	xpd->subunits = subunits;
+	xpd->subunits = subunits_of_xpd(unit_descriptor, proto_table);
 	kref_init(&xpd->kref);
 
 	/* For USB-1 disable some channels */
@@ -949,13 +975,13 @@ const char *xpp_echocan_name(const struct dahdi_chan *chan)
 	 * quirks and limitations
 	 */
 	if (xbus->quirks.has_fxo) {
-		if (xbus->quirks.has_digital_span && xpd->type == XPD_TYPE_FXO) {
+		if (xbus->quirks.has_digital_span && xpd->xpd_type == XPD_TYPE_FXO) {
 			LINE_NOTICE(xpd, pos,
 				    "quirk: give up HWEC on FXO: "
 				    "AB has digital span\n");
 			return NULL;
 		} else if (xbus->sync_mode != SYNC_MODE_AB
-			   && xpd->type == XPD_TYPE_FXS) {
+			   && xpd->xpd_type == XPD_TYPE_FXS) {
 			LINE_NOTICE(xpd, pos,
 				    "quirk: give up HWEC on FXS: "
 				    "AB has FXO and is sync slave\n");
@@ -1007,6 +1033,8 @@ void xpp_span_assigned(struct dahdi_span *span)
 		span->alarms &= ~DAHDI_ALARM_NOTOPEN;
 		dahdi_alarm_notify(&phonedev->span);
 	}
+	if (PHONE_METHOD(span_assigned, xpd))
+		CALL_PHONE_METHOD(span_assigned, xpd);
 }
 EXPORT_SYMBOL(xpp_span_assigned);
 
@@ -1183,8 +1211,7 @@ static int __init xpp_dahdi_init(void)
 	int ret = 0;
 	void *top = NULL;
 
-	INFO("revision %s MAX_XPDS=%d (%d*%d)\n", XPP_VERSION, MAX_XPDS,
-	     MAX_UNIT, MAX_SUBUNIT);
+	INFO("MAX_XPDS=%d (%d*%d)\n", MAX_XPDS, MAX_UNIT, MAX_SUBUNIT);
 #ifdef CONFIG_PROC_FS
 	xpp_proc_toplevel = proc_mkdir(PROC_DIR, NULL);
 	if (!xpp_proc_toplevel) {
@@ -1220,7 +1247,6 @@ static void __exit xpp_dahdi_cleanup(void)
 MODULE_DESCRIPTION("XPP Dahdi Driver");
 MODULE_AUTHOR("Oron Peled <oron@actcom.co.il>");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(XPP_VERSION);
 
 module_init(xpp_dahdi_init);
 module_exit(xpp_dahdi_cleanup);

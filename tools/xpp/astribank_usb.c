@@ -34,7 +34,7 @@
 #include "astribank_usb.h"
 #include <debug.h>
 
-static const char rcsid[] = "$Id$";
+//static const char rcsid[] = "$Id$";
 
 #define	DBG_MASK	0x01
 #define	TIMEOUT	500

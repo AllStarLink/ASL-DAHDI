@@ -58,44 +58,11 @@
 
 #include <linux/poll.h>
 
-#define dahdi_pci_module pci_register_driver
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19)
-#define DAHDI_IRQ_HANDLER(a) static irqreturn_t a(int irq, void *dev_id)
-#else
-#define DAHDI_IRQ_HANDLER(a) static irqreturn_t a(int irq, void *dev_id, struct pt_regs *regs)
-#endif
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 26)
-#ifdef CONFIG_PCI
-#include <linux/pci-aspm.h>
-#endif
-#endif
-
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29)
 #define HAVE_NET_DEVICE_OPS
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 26)
-#  ifdef RHEL_RELEASE_VERSION
-#    if RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(5, 6)
-#define dev_name(dev)		((dev)->bus_id)
-#define dev_set_name(dev, format, ...) \
-	snprintf((dev)->bus_id, BUS_ID_SIZE, format, ## __VA_ARGS__)
-#    else
-#define dev_set_name(dev, format, ...) \
-	do { \
-		kobject_set_name(&(dev)->kobj, format, ## __VA_ARGS__); \
-		snprintf((dev)->bus_id, BUS_ID_SIZE, \
-			kobject_name(&(dev)->kobj));	\
-	} while (0)
-#    endif
-#  else
-#define dev_name(dev)		((dev)->bus_id)
-#define dev_set_name(dev, format, ...) \
-	snprintf((dev)->bus_id, BUS_ID_SIZE, format, ## __VA_ARGS__)
-#  endif
-#endif
+#define DAHDI_HAVE_PROC_OPS
 
 /* __dev* were removed in 3.8. They still have effect in 2.6.18. */
 #ifndef __devinit
@@ -941,7 +908,7 @@ struct dahdi_device {
 	const char *devicetype;
 	struct device dev;
 	unsigned int irqmisses;
-	struct timespec registration_time;
+	ktime_t registration_time;
 };
 
 struct dahdi_span {
@@ -1407,6 +1374,78 @@ static inline short dahdi_txtone_nextsample(struct dahdi_chan *ss)
 /*! Maximum audio mask */
 #define DAHDI_FORMAT_AUDIO_MASK	((1 << 16) - 1)
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0)
+
+#undef DAHDI_HAVE_PROC_OPS
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
+
+#ifndef TIMER_DATA_TYPE
+#define TIMER_DATA_TYPE unsigned long
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 13, 0)
+
+#ifdef RHEL_RELEASE_VERSION
+#if RHEL_RELEASE_CODE > RHEL_RELEASE_VERSION(7, 5)
+#define DAHDI_HAVE_TIMER_SETUP
+#undef TIMER_DATA_TYPE
+#define TIMER_DATA_TYPE struct timer_list *
+#endif
+#endif
+
+#ifndef DAHDI_HAVE_TIMER_SETUP
+/**
+ * timer_setup - Added in 4.13.0.  We can make a direct translation to the
+ * setup_timer interface since DAHDI does not pass any flags to any of the
+ * timer_setup functions.
+ *
+ */
+static inline void
+timer_setup(struct timer_list *timer,
+	    void (*timer_callback)(TIMER_DATA_TYPE data),
+	    unsigned long flags)
+{
+	WARN_ON(flags != 0);
+	setup_timer(timer, timer_callback, (TIMER_DATA_TYPE)timer);
+}
+
+#define from_timer(var, callback_timer, timer_fieldname) \
+	container_of((struct timer_list *)(callback_timer), \
+		     typeof(*var), timer_fieldname)
+
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
+#define refcount_read atomic_read
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
+#define dahdi_ktime_equal ktime_equal
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
+
+#ifdef RHEL_RELEASE_VERSION
+#if RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(6, 8)
+#define DAHDI_HAVE_KTIME_MS_DELTA
+#endif
+#endif
+
+#ifndef DAHDI_HAVE_KTIME_MS_DELTA
+static inline s64 dahdi_ktime_to_ms(const ktime_t kt)
+{
+	struct timeval tv = ktime_to_timeval(kt);
+
+	return (s64) tv.tv_sec * MSEC_PER_SEC + tv.tv_usec / USEC_PER_MSEC;
+}
+
+static inline s64 ktime_ms_delta(const ktime_t later, const ktime_t earlier)
+{
+	return dahdi_ktime_to_ms(ktime_sub(later, earlier));
+}
+#else
+#undef DAHDI_HAVE_KTIME_MS_DELTA
+#endif
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 16, 0)
 
 /* DAHDI only was using the xxx_clear_bit variants. */
@@ -1439,103 +1478,29 @@ static inline void *PDE_DATA(const struct inode *inode)
 #endif
 #endif
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 31)
+
 #define KERN_CONT ""
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 27)
 
-#  ifndef RHEL_RELEASE_VERSION
-/* I'm not sure which 5.x release this was backported into. */
-static inline int try_wait_for_completion(struct completion *x)
-{
-	unsigned long flags;
-	int ret = 1;
-
-	spin_lock_irqsave(&x->wait.lock, flags);
-	if (!x->done)
-		ret = 0;
-	else
-		x->done--;
-	spin_unlock_irqrestore(&x->wait.lock, flags);
-	return ret;
-}
-#endif
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 26)
-#ifdef CONFIG_PROC_FS
-#include <linux/proc_fs.h>
-static inline struct proc_dir_entry *proc_create_data(const char *name,
-					mode_t mode,
-					struct proc_dir_entry *parent,
-					const struct file_operations *proc_fops,
-					void *data)
-{
-	struct proc_dir_entry *pde = create_proc_entry(name, mode, parent);
-	if (!pde)
-		return NULL;
-	pde->proc_fops = proc_fops;
-	pde->data = data;
-	return pde;
-}
-#endif /* CONFIG_PROC_FS */
-#ifndef clamp
-#define clamp(x, low, high) min(max(low, x), high)
-#endif
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 25)
-
-/* Some distributions backported fatal_signal_pending so we'll use a macro to
- * override the inline function definition. */
-#define fatal_signal_pending(p) \
-	(signal_pending((p)) && sigismember(&(p)->pending.signal, SIGKILL))
-
-#ifdef CONFIG_PCI
-#ifndef PCIE_LINK_STATE_L0S
-#define PCIE_LINK_STATE_L0S	1
-#define PCIE_LINK_STATE_L1	2
-#define PCIE_LINK_STATE_CLKPM	4
-#endif
-#define pci_disable_link_state dahdi_pci_disable_link_state
-void dahdi_pci_disable_link_state(struct pci_dev *pdev, int state);
-#endif /* CONFIG_PCI */
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 22)
-
-#define list_first_entry(ptr, type, member) \
-	list_entry((ptr)->next, type, member)
-
-#define strncasecmp strnicmp
-
-#ifndef __packed
-#define __packed  __attribute__((packed))
-#endif 
-
-#include <linux/ctype.h>
-/* A define of 'clamp_val' happened to be added in the patch
- * linux-2.6-sata-prep-work-for-rhel5-3.patch kernel-2.6.spec that also
- * backported support for strcasecmp to some later RHEL/Centos kernels.
- * If you have an older kernel that breaks because strcasecmp is already
- * defined, somebody out-smarted us. In that case, replace the line below
- * with '#if 0' to get the code building, and file a bug report at
- * https://issues.asterisk.org/ .
- */
-#ifndef clamp_val
-static inline int strcasecmp(const char *s1, const char *s2)
-{
-	int c1, c2;
-
-	do {
-		c1 = tolower(*s1++);
-		c2 = tolower(*s2++);
-	} while (c1 == c2 && c1 != 0);
-	return c1 - c2;
-}
-#endif /* clamp_val */
-
-#endif /* 2.6.22 */
-#endif /* 2.6.25 */
-#endif /* 2.6.26 */
-#endif /* 2.6.27 */
 #endif /* 2.6.31 */
 #endif /* 3.10.0 */
 #endif /* 3.16.0 */
+#endif /* 4.0.0 */
+#endif /* 4.10.0 */
+#endif /* 4.11.0 */
+#endif /* 4.13.0 */
+#endif /* 4.15.0 */
+#endif /* 5.6 */
+
+#ifndef TIMER_DATA_TYPE
+#define TIMER_DATA_TYPE struct timer_list *
+#endif
+
+#ifndef dahdi_ktime_equal
+static inline int dahdi_ktime_equal(const ktime_t cmp1, const ktime_t cmp2)
+{
+	return cmp1 == cmp2;
+}
+#endif
 
 #ifndef DEFINE_SPINLOCK
 #define DEFINE_SPINLOCK(x)      spinlock_t x = SPIN_LOCK_UNLOCKED

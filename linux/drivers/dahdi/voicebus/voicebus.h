@@ -64,7 +64,11 @@
  * platform does not support it.
  *
  */
-#undef CONFIG_VOICEBUS_DISABLE_ASPM
+#ifdef CONFIG_VOICEBUS_DISABLE_ASPM
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0)
+#include <linux/pci-aspm.h>
+#endif
+#endif
 
 /* Define this to use a FIFO for the software echocan reference.
  * (experimental) */
@@ -173,9 +177,7 @@ struct voicebus {
 	struct sk_buff_head captured_packets;
 	struct net_device *netdev;
 	struct net_device_stats net_stats;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 24)
 	struct napi_struct napi;
-#endif
 	atomic_t tx_seqnum;
 	atomic_t rx_seqnum;
 #endif

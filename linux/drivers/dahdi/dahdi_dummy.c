@@ -38,8 +38,7 @@
 
 #include <linux/version.h>
 
-#if defined(CONFIG_HIGH_RES_TIMERS) && \
-	LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 22)
+#if defined(CONFIG_HIGH_RES_TIMERS)
 #define USE_HIGHRESTIMER
 #endif
 
@@ -50,9 +49,8 @@
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
 
-#if defined(USE_HIGHRESTIMER)
 #include <linux/hrtimer.h>
-#else
+#if !defined(USE_HIGHRESTIMER)
 #include <linux/timer.h>
 #endif
 

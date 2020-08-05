@@ -85,8 +85,6 @@ static int pri_lineconfig(xpd_t *xpd, int lineconfig);
 static void send_idlebits(xpd_t *xpd, bool saveold);
 static int apply_pri_protocol(xpd_t *xpd);
 
-#define	PROC_REGISTER_FNAME	"slics"
-
 enum pri_protocol {
 	PRI_PROTO_0 = 0,
 	PRI_PROTO_E1 = 1,
@@ -390,7 +388,8 @@ static int query_subunit(xpd_t *xpd, __u8 regnum)
 				    0,	/* data_L       */
 				    0,	/* do_datah     */
 				    0,	/* data_H       */
-				    0	/* should_reply */
+				    0,	/* should_reply */
+				    0	/* do_expander  */
 	    );
 }
 
@@ -406,7 +405,8 @@ static int write_subunit(xpd_t *xpd, __u8 regnum, __u8 val)
 			val,		/* data_L       */
 			0,		/* do_datah     */
 			0,		/* data_H       */
-			0		/* should_reply */
+			0,		/* should_reply */
+			0		/* do_expander  */
 	    );
 }
 
@@ -421,7 +421,8 @@ static int pri_write_reg(xpd_t *xpd, int regnum, __u8 val)
 				    val,	/* data_L       */
 				    0,	/* do_datah     */
 				    0,	/* data_H       */
-				    0	/* should_reply */
+				    0,	/* should_reply */
+				    0	/* do_expander  */
 	    );
 }
 
@@ -707,7 +708,7 @@ static void set_clocking(xpd_t *xpd)
 	/* Now set it */
 	if (best_xpd
 	    && ((struct PRI_priv_data *)(best_xpd->priv))->clock_source == 0) {
-		__u8 reg_pc_init[] = { VAL_PC_GPI, VAL_PC_GPI, VAL_PC_GPI };
+		__u8 reg_pc_init[] = { VAL_PC_SYPR, VAL_PC_GPI, VAL_PC_GPI };
 
 		for (i = 0; i < ARRAY_SIZE(reg_pc_init); i++) {
 			__u8 reg_pc = reg_pc_init[i];
@@ -1255,21 +1256,29 @@ static int pri_chanconfig(struct file *file, struct dahdi_chan *chan,
 }
 
 static xpd_t *PRI_card_new(xbus_t *xbus, int unit, int subunit,
-			   const xproto_table_t *proto_table, __u8 subtype,
-			   int subunits, int subunit_ports, bool to_phone)
+			   const xproto_table_t *proto_table,
+			   const struct unit_descriptor *unit_descriptor,
+			   bool to_phone)
 {
 	xpd_t *xpd = NULL;
 	struct PRI_priv_data *priv;
 	int channels = min(31, CHANNELS_PERXPD);	/* worst case */
 
-	if (subunit_ports != 1) {
-		XBUS_ERR(xbus, "Bad subunit_ports=%d\n", subunit_ports);
+	if ((unit_descriptor->ports_per_chip < 1) ||
+			(unit_descriptor->ports_per_chip > 4)) {
+		XBUS_ERR(xbus, "Bad ports_per_chip=%d\n",
+				unit_descriptor->ports_per_chip);
+		return NULL;
+	}
+	if (unit_descriptor->numchips != 1) {
+		XBUS_ERR(xbus, "Bad numchips=%d\n",
+				unit_descriptor->numchips);
 		return NULL;
 	}
 	XBUS_DBG(GENERAL, xbus, "\n");
 	xpd =
-	    xpd_alloc(xbus, unit, subunit, subtype, subunits,
-		      sizeof(struct PRI_priv_data), proto_table, channels);
+	    xpd_alloc(xbus, unit, subunit,
+		      sizeof(struct PRI_priv_data), proto_table, unit_descriptor, channels);
 	if (!xpd)
 		return NULL;
 	priv = xpd->priv;
@@ -1289,7 +1298,7 @@ static int PRI_card_init(xbus_t *xbus, xpd_t *xpd)
 
 	BUG_ON(!xpd);
 	XPD_DBG(GENERAL, xpd, "\n");
-	xpd->type = XPD_TYPE_PRI;
+	xpd->xpd_type = XPD_TYPE_PRI;
 	priv = xpd->priv;
 	if (priv->pri_protocol == PRI_PROTO_0) {
 		/*
@@ -2255,7 +2264,7 @@ static int PRI_card_register_reply(xbus_t *xbus, xpd_t *xpd, reg_cmd_t *info)
 	/* Map UNIT + PORTNUM to XPD */
 	orig_xpd = xpd;
 	addr.unit = orig_xpd->addr.unit;
-	addr.subunit = info->portnum;
+	addr.subunit = info->h.portnum;
 	regnum = REG_FIELD(info, regnum);
 	data_low = REG_FIELD(info, data_low);
 	xpd = xpd_byaddr(xbus, addr.unit, addr.subunit);
@@ -2269,9 +2278,9 @@ static int PRI_card_register_reply(xbus_t *xbus, xpd_t *xpd, reg_cmd_t *info)
 	spin_lock_irqsave(&xpd->lock, flags);
 	priv = xpd->priv;
 	BUG_ON(!priv);
-	if (info->is_multibyte) {
+	if (info->h.is_multibyte) {
 		XPD_NOTICE(xpd, "Got Multibyte: %d bytes, eoframe: %d\n",
-			   info->bytes, info->eoframe);
+			   info->h.bytes, info->h.eoframe);
 		goto end;
 	}
 	if (regnum == REG_FRS0 && !REG_FIELD(info, do_subreg))
@@ -2637,9 +2646,9 @@ static int pri_xpd_probe(struct device *dev)
 
 	xpd = dev_to_xpd(dev);
 	/* Is it our device? */
-	if (xpd->type != XPD_TYPE_PRI) {
+	if (xpd->xpd_type != XPD_TYPE_PRI) {
 		XPD_ERR(xpd, "drop suggestion for %s (%d)\n", dev_name(dev),
-			xpd->type);
+			xpd->xpd_type);
 		return -EINVAL;
 	}
 	XPD_DBG(DEVICES, xpd, "SYSFS\n");
@@ -2722,7 +2731,7 @@ static int pri_xpd_remove(struct device *dev)
 }
 
 static struct xpd_driver pri_driver = {
-	.type = XPD_TYPE_PRI,
+	.xpd_type = XPD_TYPE_PRI,
 	.driver = {
 		   .name = "pri",
 		   .owner = THIS_MODULE,
@@ -2736,7 +2745,6 @@ static int __init card_pri_startup(void)
 
 	if ((ret = xpd_driver_register(&pri_driver.driver)) < 0)
 		return ret;
-	INFO("revision %s\n", XPP_VERSION);
 #ifdef	DAHDI_AUDIO_NOTIFY
 	INFO("FEATURE: WITH DAHDI_AUDIO_NOTIFY\n");
 #else
@@ -2756,7 +2764,6 @@ static void __exit card_pri_cleanup(void)
 MODULE_DESCRIPTION("XPP PRI Card Driver");
 MODULE_AUTHOR("Oron Peled <oron@actcom.co.il>");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(XPP_VERSION);
 MODULE_ALIAS_XPD(XPD_TYPE_PRI);
 
 module_init(card_pri_startup);

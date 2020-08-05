@@ -32,11 +32,7 @@
 #include <linux/version.h>
 #include <asm/atomic.h>
 #include <linux/slab.h>
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 26)
 #include <linux/semaphore.h>
-#else
-#include <asm/semaphore.h>
-#endif
 #include <linux/moduleparam.h>
 #endif /* __KERNEL__ */
 
@@ -78,14 +74,7 @@
 struct card_desc_struct {
 	struct list_head card_list;
 	u32 magic;
-	__u8 type;		/* LSB: 1 - to_phone, 0 - to_line */
-	__u8 subtype;
-	struct xpd_addr xpd_addr;
-	__u8 numchips;
-	__u8 ports_per_chip;
-	__u8 ports;
-	__u8 port_dir;
-	struct xpd_addr ec_addr;	/* echo canceler address */
+	struct unit_descriptor unit_descriptor;
 };
 
 typedef enum xpd_direction {
@@ -174,11 +163,12 @@ struct phonedev {
 struct xpd {
 	char xpdname[XPD_NAMELEN];
 	struct phonedev phonedev;
+	struct unit_descriptor unit_descriptor;
+#define	XPD_HW(xpd)	((xpd)->unit_descriptor)
 
 	const struct xops *xops;
-	xpd_type_t type;
+	xpd_type_t xpd_type;
 	const char *type_name;
-	__u8 subtype;
 	int subunits;		/* all siblings */
 	enum xpd_state xpd_state;
 	struct device xpd_dev;
@@ -217,7 +207,7 @@ struct xpd {
 
 #define	for_each_line(xpd, i) \
 		for ((i) = 0; (i) < PHONEDEV(xpd).channels; (i)++)
-#define	IS_BRI(xpd)		((xpd)->type == XPD_TYPE_BRI)
+#define	IS_BRI(xpd)		((xpd)->xpd_type == XPD_TYPE_BRI)
 #define	TICK_TOLERANCE		500	/* usec */
 
 #ifdef	DEBUG_SYNC_PARPORT
@@ -237,7 +227,7 @@ static inline void *my_kzalloc(size_t size, gfp_t flags)
 }
 
 struct xpd_driver {
-	xpd_type_t type;
+	xpd_type_t xpd_type;
 
 	struct device_driver driver;
 #define	driver_to_xpd_driver(driver) \

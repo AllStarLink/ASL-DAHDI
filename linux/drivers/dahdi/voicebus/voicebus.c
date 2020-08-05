@@ -1000,6 +1000,7 @@ __vb_rx_demand_poll(struct voicebus *vb)
 		__vb_setctl(vb, 0x0010, 0x00000000);
 }
 
+#ifndef CONFIG_VOICEBUS_TIMER
 static void
 __vb_enable_interrupts(struct voicebus *vb)
 {
@@ -1008,6 +1009,7 @@ __vb_enable_interrupts(struct voicebus *vb)
 	else
 		__vb_setctl(vb, IER_CSR7, DEFAULT_NORMAL_INTERRUPTS);
 }
+#endif
 
 static void
 __vb_disable_interrupts(struct voicebus *vb)
@@ -1033,8 +1035,7 @@ static void start_packet_processing(struct voicebus *vb)
 	clear_bit(VOICEBUS_STOP, &vb->flags);
 	clear_bit(VOICEBUS_STOPPED, &vb->flags);
 #if defined(CONFIG_VOICEBUS_TIMER)
-	vb->timer.expires = jiffies + HZ/1000;
-	add_timer(&vb->timer);
+	mod_timer(&vb->timer, jiffies + HZ/1000);
 #else
 	/* Clear the interrupt status register. */
 	__vb_setctl(vb, SR_CSR5, 0xffffffff);
@@ -1196,11 +1197,8 @@ voicebus_release(struct voicebus *vb)
 #endif
 
 	/* Make sure the underrun_work isn't running or going to run. */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 22)
-	flush_scheduled_work();
-#else
 	cancel_work_sync(&vb->underrun_work);
-#endif
+
 	/* quiesce the hardware */
 	voicebus_stop(vb);
 
@@ -1235,9 +1233,6 @@ vb_increase_latency(struct voicebus *vb, unsigned int increase,
 		    struct list_head *buffers)
 {
 	struct vbb *vbb;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 27)
-	struct vbb *n;
-#endif
 	int i;
 	LIST_HEAD(local);
 
@@ -1273,12 +1268,7 @@ vb_increase_latency(struct voicebus *vb, unsigned int increase,
 	}
 
 	handle_transmit(vb, &local);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 27)
-	list_for_each_entry_safe(vbb, n, &local, entry)
-		list_move_tail(&vbb->entry, buffers);
-#else
 	list_splice_tail(&local, buffers);
-#endif
 
 	/* Set the new latency (but we want to ensure that there aren't any
 	 * printks to the console, so we don't call the function) */
@@ -1632,16 +1622,10 @@ tx_error_exit:
  * @work: 	The work_struct used to queue this function.
  *
  */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
-static void handle_hardunderrun(void *data)
-{
-	struct voicebus *vb = data;
-#else
 static void handle_hardunderrun(struct work_struct *work)
 {
 	struct voicebus *vb = container_of(work, struct voicebus,
 					   underrun_work);
-#endif
 	if (test_bit(VOICEBUS_STOP, &vb->flags) ||
 	    test_bit(VOICEBUS_STOPPED, &vb->flags))
 		return;
@@ -1676,11 +1660,7 @@ static void handle_hardunderrun(struct work_struct *work)
  * since it doesn't employ any locking on the voicebus interface.
  */
 static irqreturn_t
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
-vb_isr(int irq, void *dev_id, struct pt_regs *regs)
-#else
 vb_isr(int irq, void *dev_id)
-#endif
 {
 	struct voicebus *vb = dev_id;
 	unsigned long flags;
@@ -1746,18 +1726,13 @@ vb_isr(int irq, void *dev_id)
  * the timer.
  */
 static void
-vb_timer(unsigned long data)
+vb_timer(TIMER_DATA_TYPE timer)
 {
 	unsigned long start = jiffies;
-	struct voicebus *vb = (struct voicebus *)data;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
-	vb_isr(0, vb, 0);
-#else
+	struct voicebus *vb = from_timer(vb, timer, timer);
 	vb_isr(0, vb);
-#endif
 	if (!test_bit(VOICEBUS_STOPPED, &vb->flags)) {
-		vb->timer.expires = start + HZ/1000;
-		add_timer(&vb->timer);
+		mod_timer(&vb->timer, start + HZ/1000);
 	}
 }
 #endif
@@ -1800,16 +1775,10 @@ __voicebus_init(struct voicebus *vb, const char *board_name,
 	INIT_LIST_HEAD(&vb->free_rx);
 
 #if defined(CONFIG_VOICEBUS_TIMER)
-	init_timer(&vb->timer);
-	vb->timer.function = vb_timer;
-	vb->timer.data = (unsigned long)vb;
+	timer_setup(&vb->timer, vb_timer, 0);
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
-	INIT_WORK(&vb->underrun_work, handle_hardunderrun, vb);
-#else
 	INIT_WORK(&vb->underrun_work, handle_hardunderrun);
-#endif
 
 	/* ----------------------------------------------------------------
 	   Configure the hardware / kernel module interfaces.

@@ -50,8 +50,15 @@ static const char rcsid[] = "$Id$";
 #ifdef	PROTOCOL_DEBUG
 #ifdef	CONFIG_PROC_FS
 #define	PROC_XBUS_COMMAND	"command"
+
+#ifdef DAHDI_HAVE_PROC_OPS
+static const struct proc_ops proc_xbus_command_ops;
+#else
 static const struct file_operations proc_xbus_command_ops;
+#endif /* DAHDI_HAVE_PROC_OPS */
+
 #endif
+
 #endif
 
 /* Command line parameters */
@@ -65,8 +72,15 @@ static DEF_PARM_BOOL(dahdi_autoreg, 0, 0444,
 		     "Register devices automatically (1) or not (0). UNUSED.");
 
 #ifdef	CONFIG_PROC_FS
+
+#ifdef DAHDI_HAVE_PROC_OPS
+static const struct proc_ops xbus_read_proc_ops;
+#else
 static const struct file_operations xbus_read_proc_ops;
-#endif
+#endif /* DAHDI_HAVE_PROC_OPS */
+
+#endif /* CONFIG_PROC_FS */
+
 static void transport_init(xbus_t *xbus, struct xbus_ops *ops,
 			   ushort max_send_size,
 			   struct device *transport_device, void *priv);
@@ -244,7 +258,7 @@ int refcount_xbus(xbus_t *xbus)
 {
 	struct kref *kref = &xbus->kref;
 
-	return atomic_read(&kref->refcount);
+	return refcount_read(&kref->refcount);
 }
 
 /*------------------------- Frame  Handling ------------------------*/
@@ -259,7 +273,7 @@ void xframe_init(xbus_t *xbus, xframe_t *xframe, void *buf, size_t maxsize,
 	xframe->packets = xframe->first_free = buf;
 	xframe->frame_maxlen = maxsize;
 	atomic_set(&xframe->frame_len, 0);
-	do_gettimeofday(&xframe->tv_created);
+	xframe->kt_created = ktime_get();
 	xframe->xframe_magic = XFRAME_MAGIC;
 }
 EXPORT_SYMBOL(xframe_init);
@@ -687,10 +701,56 @@ int xbus_xpd_unbind(xbus_t *xbus, xpd_t *xpd)
 	return 0;
 }
 
-static int new_card(xbus_t *xbus, int unit, __u8 type, __u8 subtype,
-		    __u8 numchips, __u8 ports_per_chip, __u8 ports,
-		    __u8 port_dir)
+static xpd_type_t xpd_hw2xpd_type(const struct unit_descriptor *unit_descriptor)
 {
+	xpd_type_t xpd_type;
+
+	switch (unit_descriptor->type) {
+	case 1:
+	case 6:
+		xpd_type = XPD_TYPE_FXS;
+		break;
+	case 2:
+		xpd_type = XPD_TYPE_FXO;
+		break;
+	case 3:
+		xpd_type = XPD_TYPE_BRI;
+		break;
+	case 4:
+		xpd_type = XPD_TYPE_PRI;
+		break;
+	case 5:
+		xpd_type = XPD_TYPE_ECHO;
+		break;
+	case 7:
+		xpd_type = XPD_TYPE_NOMODULE;
+		break;
+	default:
+		NOTICE("WARNING: xpd hw type is: %d\n", unit_descriptor->type);
+		xpd_type = XPD_TYPE_NOMODULE;
+		break;
+	}
+	return xpd_type;
+}
+
+int subunits_of_xpd(const struct unit_descriptor* unit_descriptor,
+		const xproto_table_t *proto_table) {
+	int ports = unit_descriptor->ports_per_chip * unit_descriptor->numchips;
+
+	return
+		(ports + proto_table->ports_per_subunit - 1)
+		/ proto_table->ports_per_subunit;
+}
+
+static int new_card(xbus_t *xbus, const struct unit_descriptor *unit_descriptor)
+{
+	int unit = unit_descriptor->addr.unit;
+	xpd_type_t xpd_type;
+	__u8 hw_type;
+	__u8 numchips;
+	__u8 ports_per_chip;
+	__u8 ports;
+	__u8 port_dir;
 	const xproto_table_t *proto_table;
 	int i;
 	int subunits;
@@ -698,12 +758,19 @@ static int new_card(xbus_t *xbus, int unit, __u8 type, __u8 subtype,
 	int remaining_ports;
 	const struct echoops *echoops;
 
-	proto_table = xproto_get(type);
+	/* Translate parameters from "unit_descriptor" */
+	hw_type = unit_descriptor->type;
+	numchips = unit_descriptor->numchips;
+	ports_per_chip = unit_descriptor->ports_per_chip;
+	port_dir = unit_descriptor->port_dir;
+	ports = unit_descriptor->ports_per_chip * unit_descriptor->numchips;
+	xpd_type = xpd_hw2xpd_type(unit_descriptor);
+	proto_table = xproto_get(xpd_type);
 	if (!proto_table) {
 		XBUS_NOTICE(xbus,
-			"CARD %d: missing protocol table for type %d. "
+			"CARD %d: missing protocol table for xpd_type %d. "
 			"Ignored.\n",
-			unit, type);
+			unit, xpd_type);
 		return -EINVAL;
 	}
 	echoops = proto_table->echoops;
@@ -711,26 +778,24 @@ static int new_card(xbus_t *xbus, int unit, __u8 type, __u8 subtype,
 		XBUS_INFO(xbus, "Detected ECHO Canceler (%d)\n", unit);
 		if (ECHOOPS(xbus)) {
 			XBUS_NOTICE(xbus,
-				"CARD %d: tryies to define echoops (type %d) "
+				"CARD %d: tryies to define echoops (xpd_type %d) "
 				"but we already have one. Ignored.\n",
-				unit, type);
+				unit, xpd_type);
 			return -EINVAL;
 		}
 		xbus->echo_state.echoops = echoops;
 		xbus->echo_state.xpd_idx = XPD_IDX(unit, 0);
 	}
 	remaining_ports = ports;
-	subunits =
-	    (ports + proto_table->ports_per_subunit -
-	     1) / proto_table->ports_per_subunit;
+	subunits = subunits_of_xpd(unit_descriptor, proto_table);
 	XBUS_DBG(DEVICES, xbus,
-		"CARD %d type=%d.%d ports=%d (%dx%d), "
+		"CARD %d xpd_type=%d/hw_type=%d ports=%d (%dx%d), "
 		"%d subunits, port-dir=0x%02X\n",
-		unit, type, subtype, ports, numchips, ports_per_chip, subunits,
+		unit, xpd_type, hw_type, ports, numchips, ports_per_chip, subunits,
 		port_dir);
-	if (type == XPD_TYPE_PRI || type == XPD_TYPE_BRI)
+	if (xpd_type == XPD_TYPE_PRI || xpd_type == XPD_TYPE_BRI)
 		xbus->quirks.has_digital_span = 1;
-	if (type == XPD_TYPE_FXO)
+	if (xpd_type == XPD_TYPE_FXO)
 		xbus->quirks.has_fxo = 1;
 	xbus->worker.num_units += subunits - 1;
 	for (i = 0; i < subunits; i++) {
@@ -754,11 +819,10 @@ static int new_card(xbus_t *xbus, int unit, __u8 type, __u8 subtype,
 			goto out;
 		}
 		XBUS_DBG(DEVICES, xbus,
-			 "Creating XPD=%d%d type=%d.%d (%d ports)\n", unit, i,
-			 type, subtype, subunit_ports);
+			 "Creating XPD=%d%d xpd_type=%d.%d hw_type=%d (%d ports)\n", unit, i,
+			 xpd_type, unit_descriptor->subtype, hw_type, subunit_ports);
 		ret =
-		    create_xpd(xbus, proto_table, unit, i, type, subtype,
-			       subunits, subunit_ports, port_dir);
+		    create_xpd(xbus, proto_table, unit_descriptor, unit, i, xpd_type);
 		if (ret < 0) {
 			XBUS_ERR(xbus, "Creation of XPD=%d%d failed %d\n", unit,
 				 i, ret);
@@ -896,12 +960,12 @@ static int xbus_initialize(xbus_t *xbus)
 	int unit;
 	int subunit;
 	xpd_t *xpd;
-	struct timeval time_start;
-	struct timeval time_end;
+	ktime_t time_start;
+	ktime_t time_end;
 	unsigned long timediff;
 	int res = 0;
 
-	do_gettimeofday(&time_start);
+	time_start = ktime_get();
 	XBUS_DBG(DEVICES, xbus, "refcount_xbus=%d\n", refcount_xbus(xbus));
 	if (xbus_aquire_xpds(xbus) < 0)	/* Until end of initialization */
 		return -EBUSY;
@@ -939,7 +1003,7 @@ static int xbus_initialize(xbus_t *xbus)
 		}
 	}
 	xbus_echocancel(xbus, 1);
-	do_gettimeofday(&time_end);
+	time_end = ktime_get();
 	timediff = usec_diff(&time_end, &time_start);
 	timediff /= 1000 * 100;
 	XBUS_INFO(xbus, "Initialized in %ld.%1ld sec\n", timediff / 10,
@@ -1102,16 +1166,10 @@ err:
  * it returns only when all XPD's on the bus are detected and
  * initialized.
  */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 20)
 static void xbus_populate(struct work_struct *work)
 {
 	struct xbus_workqueue *worker =
 	    container_of(work, struct xbus_workqueue, xpds_init_work);
-#else
-void xbus_populate(void *data)
-{
-	struct xbus_workqueue *worker = data;
-#endif
 	xbus_t *xbus;
 	struct list_head *card;
 	struct list_head *next_card;
@@ -1130,11 +1188,7 @@ void xbus_populate(void *data)
 		BUG_ON(card_desc->magic != CARD_DESC_MAGIC);
 		/* Release/Reacquire locks around blocking calls */
 		spin_unlock_irqrestore(&xbus->worker.worker_lock, flags);
-		ret =
-		    new_card(xbus, card_desc->xpd_addr.unit, card_desc->type,
-			     card_desc->subtype, card_desc->numchips,
-			     card_desc->ports_per_chip, card_desc->ports,
-			     card_desc->port_dir);
+		ret = new_card(xbus, &card_desc->unit_descriptor);
 		spin_lock_irqsave(&xbus->worker.worker_lock, flags);
 		KZFREE(card_desc);
 		if (ret)
@@ -1192,11 +1246,7 @@ int xbus_process_worker(xbus_t *xbus)
 	}
 	XBUS_DBG(DEVICES, xbus, "\n");
 	/* Initialize the work. (adapt to kernel API changes). */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 20)
 	INIT_WORK(&worker->xpds_init_work, xbus_populate);
-#else
-	INIT_WORK(&worker->xpds_init_work, xbus_populate, worker);
-#endif
 	BUG_ON(!xbus);
 	/* Now send it */
 	if (!queue_work(worker->wq, &worker->xpds_init_work)) {
@@ -1566,7 +1616,6 @@ xbus_t *xbus_new(struct xbus_ops *ops, ushort max_send_size,
 	transport_init(xbus, ops, max_send_size, transport_device, priv);
 	spin_lock_init(&xbus->lock);
 	init_waitqueue_head(&xbus->command_queue_empty);
-	init_timer(&xbus->command_timer);
 	atomic_set(&xbus->pcm_rx_counter, 0);
 	xbus->min_tx_sync = INT_MAX;
 	xbus->min_rx_sync = INT_MAX;
@@ -1720,8 +1769,7 @@ out:
 static void xbus_fill_proc_queue(struct seq_file *sfile, struct xframe_queue *q)
 {
 	seq_printf(sfile,
-		"%-15s: counts %3d, %3d, %3d worst %3d, overflows %3d "
-		"worst_lag %02ld.%ld ms\n",
+		"%-15s: counts %3d, %3d, %3d worst %3d, overflows %3d worst_lag %02lld.%lld ms\n",
 		q->name, q->steady_state_count, q->count, q->max_count,
 		q->worst_count, q->overflows, q->worst_lag_usec / 1000,
 		q->worst_lag_usec % 1000);
@@ -1757,8 +1805,9 @@ static int xbus_proc_show(struct seq_file *sfile, void *data)
 		    seq_printf(sfile, "%5d ", xbus->cpu_rcv_tasklet[i]);
 		seq_printf(sfile, "\n");
 	}
-	seq_printf(sfile, "self_ticking: %d (last_tick at %ld)\n",
-		    xbus->self_ticking, xbus->ticker.last_sample.tv.tv_sec);
+	seq_printf(sfile, "self_ticking: %d (last_tick at %lld)\n",
+		    xbus->self_ticking, ktime_divns(xbus->ticker.last_sample,
+						    NSEC_PER_SEC));
 	seq_printf(sfile, "command_tick: %d\n",
 		    xbus->command_tick_counter);
 	seq_printf(sfile, "usec_nosend: %d\n", xbus->usec_nosend);
@@ -1793,13 +1842,22 @@ static int xbus_read_proc_open(struct inode *inode, struct file *file)
 	return single_open(file, xbus_proc_show, PDE_DATA(inode));
 }
 
-static const struct file_operations xbus_read_proc_ops = {
-	.owner		= THIS_MODULE,
-	.open		= xbus_read_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+#ifdef DAHDI_HAVE_PROC_OPS
+static const struct proc_ops xbus_read_proc_ops = {
+	.proc_open		= xbus_read_proc_open,
+	.proc_read		= seq_read,
+	.proc_lseek		= seq_lseek,
+	.proc_release		= single_release,
 };
+#else
+static const struct file_operations xbus_read_proc_ops = {
+	.owner			= THIS_MODULE,
+	.open			= xbus_read_proc_open,
+	.read			= seq_read,
+	.llseek			= seq_lseek,
+	.release		= single_release,
+};
+#endif /* DAHDI_HAVE_PROC_OPS */
 
 #ifdef	PROTOCOL_DEBUG
 static ssize_t proc_xbus_command_write(struct file *file,
@@ -1892,11 +1950,19 @@ static int proc_xbus_command_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
+#ifdef DAHDI_HAVE_PROC_OPS
+static const struct proc_ops proc_xbus_command_ops = {
+	.proc_open		= proc_xbus_command_open,
+	.proc_write		= proc_xbus_command_write,
+};
+#else
 static const struct file_operations proc_xbus_command_ops = {
 	.owner		= THIS_MODULE,
 	.open		= proc_xbus_command_open,
 	.write		= proc_xbus_command_write,
 };
+#endif /* DAHDI_HAVE_PROC_OPS */
+
 #endif
 
 static int xpp_proc_read_show(struct seq_file *sfile, void *data)
@@ -1926,13 +1992,22 @@ static int xpp_proc_read_open(struct inode *inode, struct file *file)
 	return single_open(file, xpp_proc_read_show, PDE_DATA(inode));
 }
 
-static const struct file_operations xpp_proc_read_ops = {
-	.owner		= THIS_MODULE,
-	.open		= xpp_proc_read_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+#ifdef DAHDI_HAVE_PROC_OPS
+static const struct proc_ops xpp_proc_read_ops = {
+	.proc_open		= xpp_proc_read_open,
+	.proc_read		= seq_read,
+	.proc_lseek		= seq_lseek,
+	.proc_release		= single_release,
 };
+#else
+static const struct file_operations xpp_proc_read_ops = {
+	.owner			= THIS_MODULE,
+	.open			= xpp_proc_read_open,
+	.read			= seq_read,
+	.llseek			= seq_lseek,
+	.release		= single_release,
+};
+#endif /* DAHDI_HAVE_PROC_OPS */
 
 #endif
 

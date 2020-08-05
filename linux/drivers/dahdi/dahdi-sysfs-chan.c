@@ -33,9 +33,11 @@
 
 /* shortcuts, for code readability */
 #define MAKE_DAHDI_DEV(num, name) \
-	CLASS_DEV_CREATE(dahdi_class, MKDEV(DAHDI_MAJOR, num), NULL, name)
+	device_create(dahdi_class, NULL, MKDEV(DAHDI_MAJOR, num), \
+		      NULL, "%s", name)
+
 #define DEL_DAHDI_DEV(num) \
-	CLASS_DEV_DESTROY(dahdi_class, MKDEV(DAHDI_MAJOR, num))
+	device_destroy(dahdi_class, MKDEV(DAHDI_MAJOR, num))
 
 static struct class *dahdi_class;
 
@@ -158,6 +160,7 @@ static BUS_ATTR_READER(ec_state_show, dev, buf)
 	return len;
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 13, 0)
 static struct device_attribute chan_dev_attrs[] = {
 	__ATTR_RO(name),
 	__ATTR_RO(channo),
@@ -174,6 +177,39 @@ static struct device_attribute chan_dev_attrs[] = {
 	__ATTR_RO(in_use),
 	__ATTR_NULL,
 };
+#else
+static DEVICE_ATTR_RO(name);
+static DEVICE_ATTR_RO(channo);
+static DEVICE_ATTR_RO(chanpos);
+static DEVICE_ATTR_RO(sig);
+static DEVICE_ATTR_RO(sigcap);
+static DEVICE_ATTR_RO(alarms);
+static DEVICE_ATTR_RO(ec_factory);
+static DEVICE_ATTR_RO(ec_state);
+static DEVICE_ATTR_RO(blocksize);
+#ifdef OPTIMIZE_CHANMUTE
+static DEVICE_ATTR_RO(chanmute);
+#endif
+static DEVICE_ATTR_RO(in_use);
+
+static struct attribute *chan_dev_attrs[] = {
+	&dev_attr_name.attr,
+	&dev_attr_channo.attr,
+	&dev_attr_chanpos.attr,
+	&dev_attr_sig.attr,
+	&dev_attr_sigcap.attr,
+	&dev_attr_alarms.attr,
+	&dev_attr_ec_factory.attr,
+	&dev_attr_ec_state.attr,
+	&dev_attr_blocksize.attr,
+#ifdef OPTIMIZE_CHANMUTE
+	&dev_attr_chanmute.attr,
+#endif
+	&dev_attr_in_use.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(chan_dev);
+#endif
 
 static void chan_release(struct device *dev)
 {
@@ -196,7 +232,11 @@ static int chan_match(struct device *dev, struct device_driver *driver)
 static struct bus_type chan_bus_type = {
 	.name		= "dahdi_channels",
 	.match		= chan_match,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 13, 0)
 	.dev_attrs	= chan_dev_attrs,
+#else
+	.dev_groups	= chan_dev_groups,
+#endif
 };
 
 static int chan_probe(struct device *dev)

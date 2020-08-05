@@ -36,7 +36,7 @@
 #include <debug.h>
 #include "astribank_license.h"
 
-static const char rcsid[] = "$Id$";
+//static const char rcsid[] = "$Id$";
 
 #define	DBG_MASK	0x80
 

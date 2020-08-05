@@ -730,7 +730,7 @@ static void pciradio_restart_dma(struct pciradio *rad);
 static irqreturn_t pciradio_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 #endif
 
-DAHDI_IRQ_HANDLER(pciradio_interrupt)
+static irqreturn_t pciradio_interrupt(int irq, void *dev_id)
 {
 	struct pciradio *rad = dev_id;
 	unsigned char ints,byte1,byte2,gotcor,gotctcss,gotslowctcss,ctcss;
@@ -1896,7 +1896,7 @@ static int __init pciradio_init(void)
 {
 	int res;
 
-	res = dahdi_pci_module(&pciradio_driver);
+	res = pci_register_driver(&pciradio_driver);
 	if (res)
 		return -ENODEV;
 	return 0;
