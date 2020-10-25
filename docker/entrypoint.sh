@@ -18,6 +18,9 @@ for t in "$BUILD_TARGETS"; do
   echo "$t"
   cd /src/$t
   pwd
+  if [ "$t" == "tools" ]; then
+    autoreconf -i && ./configure
+  fi
   #temporarily add OS_CODENAME to the package version
   mv debian/changelog debian/changelog.bkp
   cat debian/changelog.bkp | sed "s/^\([^ ]* (\)\([^)]*\)\().*\)$/\1\2~$OS_CODENAME\3/g" > debian/changelog
