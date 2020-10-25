@@ -20,7 +20,7 @@ for t in "$BUILD_TARGETS"; do
   pwd
   #temporarily add OS_CODENAME to the package version
   mv debian/changelog debian/changelog.bkp
-  cat debian/changelog.bkp | sed -i "s/^\([^ ]* (\)\([^)]*\)\().*\)$/\1\2~$OS_CODENAME\3/g" > debian/changelog
+  cat debian/changelog.bkp | sed "s/^\([^ ]* (\)\([^)]*\)\().*\)$/\1\2~$OS_CODENAME\3/g" > debian/changelog
   debuild $OPTS
   mv debian/changelog.bkp debian/changelog
   BASENAME=$(head -1 debian/changelog | sed 's/^\([^ ]*\) (\([0-9]*:\)\?\([^)]*\)).*/\1_\3/g')
