@@ -6,9 +6,9 @@ OPTS=${DPKG_BUILDOPTS:-"-b -uc -us"}
 
 if [ -f /etc/os-release ] ; then
   OS_CODENAME=$(cat /etc/os-release | grep "^VERSION_CODENAME=" | sed 's/VERSION_CODENAME=\(.*\)/\1/g')
-else if [ command -v lsb_release ] ; then
+elif [ command -v lsb_release ] ; then
   OS_CODENAME=$(lsb_release -a 2>/dev/null | grep "^Codename:" | sed 's/^Codename:\s*\(.*\)/\1/g')
-else if [ command -v hostnamectl ] ; then
+elif [ command -v hostnamectl ] ; then
   OS_CODENAME=$(hostnamectl | grep "Operating System: " | sed 's/.*Operating System: [^(]*(\([^)]*\))/\1/g')
 else
   OS_CODENAME=unknown
