@@ -30,7 +30,10 @@ fi
 #run --build=any for following arch's after the first to prevent re-creating 'all' packages
 DPKG_BUILDOPTS="-b -uc -us"
 for A in $ARCHS; do
+       echo "ARCH: $A"
+       echo "docker build -f $DIR/Dockerfile.$A -t asl-dahdi_builder.$A --build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g) $DIR"
        docker build -f $DIR/Dockerfile.$A -t asl-dahdi_builder.$A --build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g) $DIR
+       echo "docker run -v $PDIR:/src -e DPKG_BUILDOPTS="$DPKG_BUILDOPTS" -e BUILD_TARGETS="$BUILD_TARGETS" -e FOO=bar asl-dahdi_builder.$A"
        docker run -v $PDIR:/src -e DPKG_BUILDOPTS="$DPKG_BUILDOPTS" -e BUILD_TARGETS="$BUILD_TARGETS" -e FOO=bar asl-dahdi_builder.$A
        docker image rm --force asl-dahdi_builder.$A
        DPKG_BUILDOPTS="--build=any -uc -us"
