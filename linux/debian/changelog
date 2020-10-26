@@ -4,7 +4,7 @@ asl-dahdi-linux (1:3.0.1.20200801-0.1) unstable; urgency=medium
   * module build list reduction
   * always build pciradio (fixes issues with dkms on non-CONFIG_PCI platforms) 
 
- -- Adam Paul <adamjpaul@gmail.com>  Sat, 01 Aug 2020 14:12:41 -0400
+ -- Adam Paul <adamjpaul@gmail.com>  Sat, 01 Aug 2020 14:12:42 -0400
 
 dahdi-linux (1:3.0.1.20200728-asl) unstable; urgency=medium
 
