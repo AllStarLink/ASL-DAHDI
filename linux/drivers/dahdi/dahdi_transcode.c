@@ -38,6 +38,11 @@
 
 #include <dahdi/kernel.h>
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0)
+# define HAVE_UNLOCKED_IOCTL 1
+# define HAVE_COMPAT_IOCTL 1
+#endif
+
 static int debug;
 /* The registration list contains transcoders in the order in which they were
  * registered. */
