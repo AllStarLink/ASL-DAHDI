@@ -14,16 +14,21 @@ else
   OS_CODENAME=unknown
 fi
 
-for t in "$BUILD_TARGETS"; do
+for t in $BUILD_TARGETS; do
   echo "$t"
   cd /src/$t
   pwd
+  echo "COMMIT_VERSIONING: $COMMIT_VERSIONING, ${COMMIT_VERSIONING^^}"
+  COMMIT_VERSION=""
+  if [ "${COMMIT_VERSIONING^^}" == "YES" ] ; then
+    COMMIT_VERSION=$(git show --date=format:'%Y%m%dT%H%M%S' --pretty=format:"+git%cd.%h" --no-patch)
+  fi
   if [ "$t" == "tools" ]; then
     autoreconf -i && ./configure
   fi
   #temporarily add OS_CODENAME to the package version
   mv debian/changelog debian/changelog.bkp
-  cat debian/changelog.bkp | sed "s/^\([^ ]* (\)\([^)]*\)\().*\)$/\1\2~$OS_CODENAME\3/g" > debian/changelog
+  cat debian/changelog.bkp | sed "s/^\([^ ]* (\)\([^)]*\)\().*\)$/\1\2~${OS_CODENAME}${COMMIT_VERSION}\3/g" > debian/changelog
   debuild $OPTS
   mv debian/changelog.bkp debian/changelog
   BASENAME=$(head -1 debian/changelog | sed 's/^\([^ ]*\) (\([0-9]*:\)\?\([^)]*\)).*/\1_\3/g')
@@ -34,4 +39,4 @@ for t in "$BUILD_TARGETS"; do
   mv *.buildinfo build/$BASENAME
   mv *.changes build/$BASENAME
 done
-chown -R user .
+if [ "$(id -u)" -ne 0 ]; then chown -R user /src/*; fi
