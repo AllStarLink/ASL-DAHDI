@@ -28,7 +28,6 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-ARCHS="amd64 armhf"
 if [ -z "$ARCHS" ]
 then
   ARCHS="amd64 armhf"
