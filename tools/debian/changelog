@@ -1,3 +1,9 @@
+asl-dahdi-tools (1:3.0.0-1.3) unstable; urgency=medium
+
+  * package revision bump to kickstart os-based versioning scheme
+
+ -- Adam Paul <adamjpaul@gmail.com>  Sun, 01 Jan 2023 01:44:55 -0400
+
 asl-dahdi-tools (1:3.0.0.1.2) unstable; urgency=medium
 
   * minor dependency changes
