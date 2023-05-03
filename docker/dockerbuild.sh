@@ -22,7 +22,9 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     -o|--operating-systems)
-      OPERATING_SYSTEMS="$1"
+      OPERATING_SYSTEMS="$2"
+      shift
+      shift
       ;;
     -*|--*|*)
       echo "Unknown option $1"
