@@ -21,6 +21,9 @@ while [[ $# -gt 0 ]]; do
       COMMIT_VERSIONING=YES
       shift
       ;;
+    -o|--operating-systems)
+      OPERATING_SYSTEMS="$1"
+      ;;
     -*|--*|*)
       echo "Unknown option $1"
       exit 1
@@ -38,8 +41,14 @@ then
   TARGETS="tools linux"
 fi
 
+if [ -z "$OPERATING_SYSTEMS" ]
+then
+  OPERATING_SYSTEMS="buster"
+fi
+
 echo "Architectures: $ARCHS"
 echo "Targets: $TARGETS"
+echo "Operating Systems: $OPERATING_SYSTEMS"
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 PDIR=$(dirname $DIR)
@@ -67,8 +76,10 @@ fi
 #run --build=any for following arch's after the first to prevent re-creating 'all' packages
 DPKG_BUILDOPTS="-b -uc -us"
 for A in $ARCHS; do
-       docker build -f $DIR/Dockerfile.$A -t asl-dahdi_builder.$A --build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g) $DIR
-       docker run -v $PDIR:/src -e DPKG_BUILDOPTS="$DPKG_BUILDOPTS" -e BUILD_TARGETS="$BUILD_TARGETS" -e COMMIT_VERSIONING="$COMMIT_VERSIONING" asl-dahdi_builder.$A
-       docker image rm --force asl-dahdi_builder.$A
+for O in $OPERATING_SYSTEMS; do
+       docker build -f $DIR/Dockerfile.$O.$A -t asl-dahdi_builder.$O.$A --build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g) $DIR
+       docker run -v $PDIR:/src -e DPKG_BUILDOPTS="$DPKG_BUILDOPTS" -e BUILD_TARGETS="$BUILD_TARGETS" -e COMMIT_VERSIONING="$COMMIT_VERSIONING" asl-dahdi_builder.$O.$A
+       docker image rm --force asl-dahdi_builder.$O.$A
        DPKG_BUILDOPTS="--build=any -uc -us"
+done
 done
