@@ -40,7 +40,7 @@ fi
 
 if [ -z "$TARGETS" ]
 then
-  TARGETS="tools linux"
+  TARGETS="linux tools"
 fi
 
 if [ -z "$OPERATING_SYSTEMS" ]
