@@ -23,9 +23,9 @@ for t in $BUILD_TARGETS; do
     COMMIT_VERSION=$(git show --date=format:'%Y%m%dT%H%M%S' --pretty=format:"+git%cd.%h" --no-patch)
   fi
   if [ "$t" == "tools" ]; then
-    if [ -f ../../asl-dahdi*.deb ]; then
+    if [ -f ../build/asl-dahdi*.deb ]; then
       echo "installing previously build asl-dahdi-* debs"
-      dpkg -i ../../asl-dahdi*.deb
+      dpkg -i ../build/asl-dahdi*.deb
       apt -f install
     fi
     autoreconf -i && ./configure
