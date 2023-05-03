@@ -23,6 +23,11 @@ for t in $BUILD_TARGETS; do
     COMMIT_VERSION=$(git show --date=format:'%Y%m%dT%H%M%S' --pretty=format:"+git%cd.%h" --no-patch)
   fi
   if [ "$t" == "tools" ]; then
+    if [ -f ../asl-dahdi*.deb ]; then
+      echo "installing previously build asl-dahdi-* debs"
+      dpkg -i ../asl-dahdi*.deb
+      apt -f install
+    fi
     autoreconf -i && ./configure
   fi
   #temporarily add OS_CODENAME to the package version
