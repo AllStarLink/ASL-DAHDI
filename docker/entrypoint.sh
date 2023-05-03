@@ -25,8 +25,7 @@ for t in $BUILD_TARGETS; do
   if [ "$t" == "tools" ]; then
     if find ../build/asl-dahdi* -name asl-dahdi-*.deb | grep -q . ; then
       echo "installing previously build asl-dahdi-* debs"
-      dpkg -i ../build/asl-dahdi*/asl-dahdi-*.deb
-      apt -f install
+      apt install ../build/asl-dahdi*/asl-dahdi-*.deb
     fi
     autoreconf -i && ./configure
   fi
