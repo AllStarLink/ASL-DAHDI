@@ -78,10 +78,15 @@ fi
 #run --build=any for following arch's after the first to prevent re-creating 'all' packages
 DPKG_BUILDOPTS="-b -uc -us"
 for A in $ARCHS; do
-for O in $OPERATING_SYSTEMS; do
-       docker build -f $DIR/Dockerfile.$O.$A -t asl-dahdi_builder.$O.$A --build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g) $DIR
+  if [ "$A" == "arm64" ]; then
+    DA="arm32v7"
+  else
+    DA="$A"
+  fi
+  for O in $OPERATING_SYSTEMS; do
+       docker build -f $DIR/Dockerfile -t asl-dahdi_builder.$O.$A --build-arg ARCH="$DA" --build-arg OS="$O" --build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g) $DIR
        docker run -v $PDIR:/src -e DPKG_BUILDOPTS="$DPKG_BUILDOPTS" -e BUILD_TARGETS="$BUILD_TARGETS" -e COMMIT_VERSIONING="$COMMIT_VERSIONING" asl-dahdi_builder.$O.$A
        docker image rm --force asl-dahdi_builder.$O.$A
        DPKG_BUILDOPTS="--build=any -uc -us"
-done
+  done
 done
