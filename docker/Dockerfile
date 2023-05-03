@@ -25,13 +25,9 @@ RUN apt-get update && apt-get -y install \
     wget \
     --no-install-recommends
 
-# add the allstarlink repo for build deps
-RUN echo "deb https://apt.allstarlink.org/repos/asl_builds $OS main" > /etc/apt/sources.list.d/allstarlink.list
-RUN wget -O - https://apt.allstarlink.org/repos/repo_signing.gpg | apt-key add -
-
 # Install application dependencies
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y install \
-    debhelper bzip2 asciidoc-base dkms tar autoconf automake cpio pkg-config libnewt-dev bzip2 libusb-1.0-0-dev groff man-db asl-dahdi-source \
+    debhelper bzip2 asciidoc-base dkms tar autoconf automake cpio pkg-config libnewt-dev bzip2 libusb-1.0-0-dev groff man-db \
     --no-install-recommends
 
 # Import entrypoint script
