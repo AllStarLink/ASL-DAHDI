@@ -78,7 +78,7 @@ fi
 #run --build=any for following arch's after the first to prevent re-creating 'all' packages
 DPKG_BUILDOPTS="-b -uc -us"
 for A in $ARCHS; do
-  if [ "$A" == "arm64" ]; then
+  if [ "$A" == "armhf" ]; then
     DA="arm32v7"
   else
     DA="$A"
