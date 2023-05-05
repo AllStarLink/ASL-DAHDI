@@ -25,6 +25,9 @@ RUN apt-get update && apt-get -y install \
     wget \
     --no-install-recommends
 
+# Bookworm/sid-specific build dependency - fail silently if package does not exist
+RUN apt-get -y install dh-dkms; exit 0
+
 # Install application dependencies
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y install \
     debhelper bzip2 asciidoc-base dkms tar autoconf automake cpio pkg-config libnewt-dev bzip2 libusb-1.0-0-dev groff man-db \
