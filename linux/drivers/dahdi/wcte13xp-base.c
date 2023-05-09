@@ -35,7 +35,13 @@
 #include <linux/sched.h>
 #include <linux/crc32.h>
 
+/* Linux kernel 5.16 and greater has removed user-space headers from the kernel include path */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0)
+#include <asm/types.h>
+#else
 #include <stdbool.h>
+#endif
+
 #include <dahdi/kernel.h>
 
 #include "wct4xxp/wct4xxp.h"	/* For certain definitions */
