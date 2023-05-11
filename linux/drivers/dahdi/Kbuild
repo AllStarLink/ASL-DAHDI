@@ -44,7 +44,7 @@ dahdi-objs := dahdi-base.o dahdi-sysfs.o dahdi-sysfs-chan.o dahdi-version.o
 $(obj)/pciradio.o: $(obj)/radfw.h
 
 hostprogs := makefw
-
+hostprogs-y := makefw
 
 $(obj)/radfw.h: $(src)/pciradio.rbt $(obj)/makefw
 	$(obj)/makefw $< radfw > $@
