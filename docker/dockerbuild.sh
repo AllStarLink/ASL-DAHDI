@@ -87,7 +87,7 @@ for A in $ARCHS; do
   fi
   for O in $OPERATING_SYSTEMS; do
        # The following is a hack to deal with the fact that there is no trixie tag for riscv64/debian.  It will break when trixie is no longer the testing release
-       if [ "$A" == "riscv64" && "$O" == "trixie" ]; then
+       if [ "$A" == "riscv64" ] && [ "$O" == "trixie" ]; then
          O="testing"
        fi
        docker build -f $DIR/Dockerfile -t asl-dahdi_builder.$O.$A --build-arg ARCH="$DA" --build-arg OS="$O" --build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g) $DIR
