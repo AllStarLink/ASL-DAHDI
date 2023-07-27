@@ -82,6 +82,12 @@ for A in $ARCHS; do
     DA="arm32v7"
   elif [ "$A" == "arm64" ]; then
     DA="arm64v8"
+  elif [ "$A" == "riscv64"; then
+    if [ "$O" == "trixie ] ; then
+      O="testing"
+    else
+      echo "build ARCH/OS not supported"
+    fi
   else
     DA="$A"
   fi
