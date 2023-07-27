@@ -82,16 +82,14 @@ for A in $ARCHS; do
     DA="arm32v7"
   elif [ "$A" == "arm64" ]; then
     DA="arm64v8"
-  elif [ "$A" == "riscv64"; then
-    if [ "$O" == "trixie" ] ; then
-      O="testing"
-    else
-      echo "build ARCH/OS not supported"
-    fi
   else
     DA="$A"
   fi
   for O in $OPERATING_SYSTEMS; do
+       # The following is a hack to deal with the fact that there is no trixie tag for riscv64/debian.  It will break when trixie is no longer the testing release
+       if [ "$A" == "riscv64" && "$O" == "trixie" ]; then
+         O="testing"
+       fi
        docker build -f $DIR/Dockerfile -t asl-dahdi_builder.$O.$A --build-arg ARCH="$DA" --build-arg OS="$O" --build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g) $DIR
        docker run -v $PDIR:/src -e DPKG_BUILDOPTS="$DPKG_BUILDOPTS" -e BUILD_TARGETS="$BUILD_TARGETS" -e COMMIT_VERSIONING="$COMMIT_VERSIONING" asl-dahdi_builder.$O.$A
        docker image rm --force asl-dahdi_builder.$O.$A
