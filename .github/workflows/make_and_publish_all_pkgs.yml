@@ -1,0 +1,24 @@
+name: make_and_publish_all_pkgs
+run_name: Package ${{ github.event.repository.name }}(${{ github.ref_name }}) for all platforms, Publish to ${{ inputs.deployment-environment }}
+on:
+  workflow_dispatch:
+    inputs:
+      deployment-environment:
+        type: choice
+        options:
+          - development
+          - testing
+          - production
+      commit-versioning:
+        type: choice
+        options:
+          - default
+          - yes
+          - no
+jobs:
+  make-all-packages:
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            os: buster
