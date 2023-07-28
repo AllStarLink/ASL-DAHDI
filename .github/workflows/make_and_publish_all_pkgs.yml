@@ -26,7 +26,7 @@ jobs:
     steps:
       - uses: ./.github/workflows/make_and_publish_pkgs.yml
         with:
-          arch: ${{ arch }}
-          os: ${{ os }}
+          arch: ${{ matrix.arch }}
+          os: ${{ matrix.os }}
           development-environment: ${{ development-environment }}
           commit-versioning: ${{ commit-versioning }}
