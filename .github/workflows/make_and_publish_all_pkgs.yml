@@ -55,7 +55,7 @@ jobs:
     uses: ./.github/workflows/make_and_publish_pkgs.yml
     with:
       arch: ${{ matrix.arch }}
-      os: ${{ matrix.arch }}
+      os: ${{ matrix.os }}
       deployment-environment: ${{ inputs.deployment-environment}}
       commit-versioning: ${{ inputs.commit-versioning}}
     secrets: inherit
