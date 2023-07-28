@@ -28,3 +28,4 @@ jobs:
       os: ${{ matrix.arch }}
       deployment-environment: ${{ inputs.deployment-environment}}
       commit-versioning: ${{ inputs.commit-versioning}}
+    secrets: inherit
