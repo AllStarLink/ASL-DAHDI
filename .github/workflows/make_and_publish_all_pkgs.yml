@@ -28,5 +28,5 @@ jobs:
         with:
           arch: ${{ matrix.arch }}
           os: ${{ matrix.os }}
-          development-environment: ${{ development-environment }}
-          commit-versioning: ${{ commit-versioning }}
+          development-environment: ${{ inputs.development-environment }}
+          commit-versioning: ${{ inputs.commit-versioning }}
