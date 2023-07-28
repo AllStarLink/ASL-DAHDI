@@ -1,5 +1,5 @@
 name: make_and_publish_all_pkgs
-run_name: Package ${{ github.event.repository.name }}(${{ github.ref_name }}) for all platforms, Publish to ${{ inputs.deployment-environment }}
+run-name: Package ${{ github.event.repository.name }}(${{ github.ref_name }}) for all platforms, Publish to ${{ inputs.deployment-environment }}
 on:
   workflow_dispatch:
     inputs:
@@ -22,3 +22,11 @@ jobs:
         include:
           - arch: amd64
             os: buster
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/workflows/make_and_publish_pkgs.yml
+        with:
+          arch: ${{ arch }}
+          os: ${{ os }}
+          development-environment: ${{ development-environment }}
+          commit-versioning: ${{ commit-versioning }}
