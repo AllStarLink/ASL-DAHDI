@@ -22,6 +22,36 @@ jobs:
         include:
           - arch: amd64
             os: buster
+          - arch: armhf
+            os: buster
+          - arch: arm64
+            os: buster
+          - arch: amd64
+            os: bullseye
+          - arch: armhf
+            os: bullseye
+          - arch: arm64
+            os: bullseye
+          - arch: amd64
+            os: bookworm
+          - arch: arm64
+            os: bookworm
+          - arch: armhf
+            os: bookworm
+          - arch: amd64
+            os: trixie
+          - arch: arm64
+            os: trixie
+          - arch: armhf
+            os: trixie
+          - arch: amd64
+            os: sid
+          - arch: arm64
+            os: sid
+          - arch: armhf
+            os: sid
+          - arch: riscv64
+            os: sid
     uses: ./.github/workflows/make_and_publish_pkgs.yml
     with:
       arch: ${{ matrix.arch }}
