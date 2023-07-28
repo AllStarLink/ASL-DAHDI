@@ -31,6 +31,20 @@ on:
           - default
           - yes
           - no
+  workflow_call:
+    inputs:
+      arch:
+        required: true
+        type: string
+      os:
+        required: true
+        type: string
+      deployment-environment:
+        required: true
+        type: string
+      commit-versioning:
+        required: true
+        type: string
 jobs:
   make-packages:
     uses: AllStarLink/asl_workflows/.github/workflows/ephemeral_ec2_run-this.yml@develop
