@@ -19,14 +19,9 @@ jobs:
   make-all-packages:
     strategy:
       matrix:
+        development-environment: [ inputs.development-environment ]
+        commit-versioning: [ inputs.commit-versioning ]
         include:
           - arch: amd64
             os: buster
-    runs-on: ubuntu-latest
-    steps:
-      - uses: ./.github/workflows/make_and_publish_pkgs.yml
-        with:
-          arch: ${{ matrix.arch }}
-          os: ${{ matrix.os }}
-          development-environment: ${{ inputs.development-environment }}
-          commit-versioning: ${{ inputs.commit-versioning }}
+    uses: ./.github/workflows/make_and_publish_pkgs.yml
