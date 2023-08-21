@@ -1,0 +1,6 @@
+#!/bin/bash
+set -e
+
+modprobe -v dahdi || true
+modprobe -v dahdi_dummy || true
+modprobe -v dahdi_transcode || true
